@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Black Family History Maps</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: #f5f0eb;
+    color: #2c2c2c;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1rem;
+  }
+  h1 {
+    font-size: 1.6rem;
+    font-weight: 600;
+    margin-bottom: 2rem;
+    text-align: center;
+    color: #3a3a3a;
+  }
+  .cards {
+    display: flex;
+    flex-direction: column;
+    gap: 1.2rem;
+    width: 100%;
+    max-width: 480px;
+  }
+  a.card {
+    display: block;
+    background: #fff;
+    border: 1px solid #d8d0c8;
+    border-radius: 10px;
+    padding: 1.4rem 1.6rem;
+    text-decoration: none;
+    color: inherit;
+    transition: box-shadow 0.2s, transform 0.15s;
+  }
+  a.card:hover, a.card:active {
+    box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+    transform: translateY(-2px);
+  }
+  .card-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #1a5276;
+    margin-bottom: 0.35rem;
+  }
+  .card-sub {
+    font-size: 0.88rem;
+    color: #666;
+    line-height: 1.4;
+  }
+  footer {
+    margin-top: 2.5rem;
+    font-size: 0.78rem;
+    color: #999;
+  }
+</style>
+</head>
+<body>
+  <h1>Black Family History Maps</h1>
+  <div class="cards">
+    <a class="card" href="pa-map.html">
+      <div class="card-title">Pa's Places &amp; Routes</div>
+      <div class="card-sub">Major Charles James Black, Royal Marines (1897&ndash;1986)</div>
+    </a>
+    <a class="card" href="catrijn-map.html">
+      <div class="card-title">Groote Catrijn</div>
+      <div class="card-sub">Catharina van Paliacatta, Cape of Good Hope (c.1631&ndash;1683)</div>
+    </a>
+  </div>
+  <footer>&copy; 2026 Dr Warwick Black</footer>
+</body>
+</html>

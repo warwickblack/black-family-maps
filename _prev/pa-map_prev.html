@@ -1,0 +1,1109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Charles James Black: Places and Routes 1897-1986</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"/>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; font-family: Aptos, 'Segoe UI', Calibri, sans-serif; }
+
+/* === HEADER === */
+#header {
+  display: flex; align-items: center; gap: 12px;
+  background: #1a1a2e; color: #fff; padding: 8px 16px; height: 48px; z-index: 1000;
+}
+#header h1 { font-size: 15px; font-weight: 600; white-space: nowrap; letter-spacing: 0.3px; }
+#header h1 span { font-weight: 300; opacity: 0.7; margin-left: 6px; font-size: 13px; }
+#search-box {
+  display: flex; align-items: center; background: rgba(255,255,255,0.12);
+  border-radius: 6px; padding: 2px 8px; margin-left: auto; gap: 4px;
+}
+#search-input {
+  background: transparent; border: none; color: #fff; font-size: 13px;
+  width: 180px; outline: none; padding: 4px 0;
+}
+#search-input::placeholder { color: rgba(255,255,255,0.45); }
+#search-count { font-size: 11px; color: rgba(255,255,255,0.6); white-space: nowrap; min-width: 40px; }
+.search-nav { background: none; border: none; color: rgba(255,255,255,0.7); cursor: pointer; font-size: 14px; padding: 2px; }
+.search-nav:hover { color: #fff; }
+#btn-reset {
+  background: rgba(255,255,255,0.12); border: none; color: #fff; padding: 5px 12px;
+  border-radius: 5px; cursor: pointer; font-size: 12px; white-space: nowrap;
+}
+#btn-reset:hover { background: rgba(255,255,255,0.22); }
+
+/* === REGION BAR === */
+#region-bar {
+  display: flex; align-items: center; gap: 6px; background: #252547;
+  padding: 6px 16px; overflow-x: auto; white-space: nowrap; z-index: 999;
+}
+.region-pill {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 4px 12px; border-radius: 14px; font-size: 12px; font-weight: 500;
+  cursor: pointer; border: none; color: #fff; opacity: 0.7;
+  transition: all 0.2s ease;
+}
+.region-pill:hover { opacity: 1; }
+.region-pill.active { opacity: 1; box-shadow: 0 0 0 2px rgba(255,255,255,0.4); }
+.region-pill .dot { width: 6px; height: 6px; border-radius: 50%; background: #fff; display: none; }
+.region-pill.active .dot { display: block; }
+
+/* === MAIN LAYOUT === */
+#main {
+  display: flex; height: calc(100vh - 48px - 38px - 36px); position: relative;
+}
+
+/* === SIDEBAR === */
+#sidebar {
+  width: 300px; min-width: 300px; background: #f8f8fa; border-right: 1px solid #e0e0e4;
+  display: flex; flex-direction: column; transition: margin-left 0.3s ease;
+  z-index: 800; overflow: hidden;
+}
+#sidebar.collapsed { margin-left: -300px; }
+#sidebar-toggle {
+  position: absolute; left: 300px; top: 8px; z-index: 810;
+  background: #f8f8fa; border: 1px solid #e0e0e4; border-left: none;
+  border-radius: 0 6px 6px 0; padding: 6px 4px; cursor: pointer;
+  font-size: 14px; line-height: 1; transition: left 0.3s ease; color: #555;
+}
+#sidebar.collapsed ~ #sidebar-toggle { left: 0; }
+#sidebar-tabs {
+  display: flex; border-bottom: 2px solid #e0e0e4; flex-shrink: 0;
+}
+.sidebar-tab {
+  flex: 1; padding: 8px 0; text-align: center; font-size: 12px; font-weight: 600;
+  cursor: pointer; color: #888; border-bottom: 2px solid transparent;
+  margin-bottom: -2px; transition: all 0.2s;
+}
+.sidebar-tab.active { color: #1a1a2e; border-bottom-color: #1a1a2e; }
+.sidebar-content { flex: 1; overflow-y: auto; padding: 10px; }
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+/* Journey tab */
+.journey-card {
+  background: #fff; border-radius: 8px; margin-bottom: 8px;
+  border: 1px solid #e8e8ec; overflow: hidden; transition: box-shadow 0.2s;
+}
+.journey-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+.journey-header {
+  display: flex; align-items: center; gap: 8px; padding: 10px 12px;
+  cursor: pointer; font-size: 13px; font-weight: 600; color: #333;
+}
+.journey-header .arrow { font-size: 10px; transition: transform 0.2s; color: #aaa; }
+.journey-card.expanded .journey-header .arrow { transform: rotate(90deg); }
+.journey-badge {
+  font-size: 10px; padding: 2px 8px; border-radius: 10px; color: #fff; font-weight: 500;
+}
+.journey-stops { display: none; padding: 0 12px 10px 24px; }
+.journey-card.expanded .journey-stops { display: block; }
+.journey-stop {
+  display: flex; align-items: flex-start; gap: 8px; padding: 5px 0;
+  border-left: 2px dashed #ddd; padding-left: 12px; margin-left: 4px;
+  font-size: 12px; cursor: pointer; color: #555;
+}
+.journey-stop:hover { color: #1a1a2e; }
+.journey-stop .stop-name { font-weight: 600; color: #333; }
+.btn-play {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: #1a1a2e; color: #fff; border: none; padding: 4px 10px;
+  border-radius: 4px; font-size: 11px; cursor: pointer; margin: 4px 0 4px 12px;
+}
+.btn-play:hover { background: #2a2a4e; }
+
+/* Timeline tab */
+.chrono-key {
+  display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; padding: 6px;
+  background: #fff; border-radius: 6px; border: 1px solid #e8e8ec;
+}
+.chrono-key-item { display: flex; align-items: center; gap: 3px; font-size: 10px; color: #666; }
+.cat-chip {
+  display: inline-block; width: 8px; height: 8px; border-radius: 2px;
+}
+.cat-P { background: #8d6e63; }
+.cat-C { background: #1565c0; }
+.cat-S { background: #6a1b9a; }
+.cat-T { background: #00838f; }
+.cat-H { background: #9e9e9e; }
+.chrono-entry {
+  display: flex; gap: 8px; padding: 6px 8px; border-radius: 6px;
+  font-size: 12px; margin-bottom: 3px; cursor: default; transition: background 0.15s;
+}
+.chrono-entry.clickable { cursor: pointer; }
+.chrono-entry.clickable:hover { background: #eef; }
+.chrono-entry .chrono-date { min-width: 75px; font-weight: 600; color: #555; font-size: 11px; white-space: nowrap; }
+.chrono-entry .chrono-chip { flex-shrink: 0; margin-top: 2px; }
+.chrono-entry .chrono-text { color: #333; line-height: 1.4; }
+.chrono-entry.search-hit { background: #fff3cd; }
+
+/* Places tab */
+#places-controls {
+  display: flex; gap: 6px; margin-bottom: 8px; flex-wrap: wrap;
+}
+#places-filter {
+  flex: 1; min-width: 120px; padding: 5px 8px; border: 1px solid #ddd;
+  border-radius: 5px; font-size: 12px; outline: none;
+}
+#places-sort {
+  padding: 5px 8px; border: 1px solid #ddd; border-radius: 5px;
+  font-size: 12px; background: #fff; outline: none;
+}
+.place-item {
+  display: flex; align-items: center; gap: 8px; padding: 6px 8px;
+  border-radius: 6px; cursor: pointer; font-size: 12px; transition: background 0.15s;
+}
+.place-item:hover { background: #eef; }
+.place-item .place-icon { flex-shrink: 0; }
+.place-item .place-name { font-weight: 600; color: #333; }
+.place-item .place-group {
+  font-size: 10px; padding: 1px 6px; border-radius: 8px; color: #fff; margin-left: auto; white-space: nowrap;
+}
+.place-item.search-hit { background: #fff3cd; }
+
+/* === MAP === */
+#map-wrap { flex: 1; position: relative; }
+#map { width: 100%; height: 100%; }
+
+/* Popups */
+.leaflet-popup-content-wrapper {
+  border-radius: 10px; font-family: Aptos, 'Segoe UI', Calibri, sans-serif;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+}
+.leaflet-popup-content { margin: 0; padding: 0; max-width: 340px; min-width: 260px; }
+.popup-inner { padding: 14px 16px; }
+.popup-title { font-size: 15px; font-weight: 700; color: #1a1a2e; margin-bottom: 4px; }
+.popup-flags { display: flex; gap: 4px; margin-bottom: 6px; flex-wrap: wrap; }
+.popup-flag {
+  font-size: 9px; padding: 1px 6px; border-radius: 8px;
+  background: #eee; color: #888; font-weight: 500; text-transform: uppercase;
+}
+.popup-pa {
+  font-style: italic; color: #6a1b9a; font-size: 13px; margin-bottom: 8px;
+  padding: 6px 10px; background: #f3e5f5; border-radius: 6px; line-height: 1.4;
+}
+.popup-meta {
+  display: flex; gap: 6px; align-items: center; margin-bottom: 8px; flex-wrap: wrap;
+}
+.popup-phase {
+  font-size: 10px; padding: 2px 8px; border-radius: 10px; color: #fff; font-weight: 500;
+}
+.popup-status { font-size: 11px; color: #888; }
+.popup-modern { font-size: 11px; color: #666; font-style: italic; margin-bottom: 8px; }
+.popup-visits {
+  margin-bottom: 8px; padding: 6px 10px; background: #e8f5e9; border-radius: 6px;
+}
+.popup-visits-title { font-size: 10px; font-weight: 700; color: #2e7d32; text-transform: uppercase; margin-bottom: 3px; }
+.popup-visit { font-size: 12px; color: #333; padding: 2px 0; }
+.popup-story { font-size: 12.5px; color: #333; line-height: 1.5; margin-bottom: 8px; }
+.popup-story a { color: #1565c0; text-decoration: underline; cursor: pointer; }
+.popup-thenow {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;
+}
+.popup-then, .popup-now {
+  padding: 6px 8px; border-radius: 6px; font-size: 11px; line-height: 1.4;
+}
+.popup-then { background: #fff3e0; }
+.popup-then .tn-label { font-size: 9px; font-weight: 700; color: #e65100; text-transform: uppercase; }
+.popup-now { background: #e3f2fd; }
+.popup-now .tn-label { font-size: 9px; font-weight: 700; color: #0d47a1; text-transform: uppercase; }
+.popup-lift {
+  font-size: 12px; color: #4e342e; font-style: italic; padding: 6px 10px;
+  background: #efebe9; border-radius: 6px; margin-bottom: 8px; line-height: 1.4;
+}
+.popup-src { font-size: 10px; color: #999; margin-bottom: 6px; }
+.popup-routes { display: flex; gap: 4px; flex-wrap: wrap; }
+.popup-route-badge {
+  font-size: 10px; padding: 2px 8px; border-radius: 8px; color: #fff;
+  cursor: pointer; font-weight: 500;
+}
+
+/* Tooltip */
+.marker-tooltip {
+  font-family: Aptos, 'Segoe UI', Calibri, sans-serif;
+  font-size: 12px; line-height: 1.4; max-width: 240px;
+}
+.marker-tooltip strong { display: block; margin-bottom: 2px; }
+.marker-tooltip .tt-date { color: #6a1b9a; font-size: 11px; }
+.marker-tooltip .tt-story { color: #666; font-size: 11px; }
+
+/* Legend */
+#legend {
+  position: absolute; bottom: 10px; left: 10px; z-index: 800;
+  background: rgba(255,255,255,0.95); border-radius: 8px; padding: 10px 14px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.12); font-size: 11px; max-width: 220px;
+}
+#legend h4 { font-size: 11px; font-weight: 700; margin-bottom: 6px; color: #333; }
+.legend-row { display: flex; align-items: center; gap: 6px; padding: 2px 0; color: #555; }
+.legend-shape { width: 16px; text-align: center; }
+
+/* Footer inside map */
+#map-footer {
+  position: absolute; bottom: 10px; right: 10px; z-index: 800;
+  background: rgba(255,255,255,0.85); border-radius: 6px; padding: 6px 10px;
+  font-size: 9px; color: #888; max-width: 380px; line-height: 1.4;
+}
+
+/* === TIMELINE SCRUBBER === */
+#scrubber {
+  height: 36px; background: #1a1a2e; display: flex; align-items: center;
+  padding: 0 16px; gap: 8px; z-index: 1000;
+}
+#scrubber-label { color: rgba(255,255,255,0.7); font-size: 11px; white-space: nowrap; }
+#scrubber-track {
+  flex: 1; height: 18px; position: relative; cursor: pointer;
+  border-radius: 4px; overflow: hidden;
+}
+.scrubber-seg {
+  position: absolute; top: 0; height: 100%; opacity: 0.6;
+  transition: opacity 0.15s;
+}
+.scrubber-seg:hover { opacity: 1; }
+#scrubber-handle {
+  position: absolute; top: -2px; width: 4px; height: 22px;
+  background: #fff; border-radius: 2px; cursor: ew-resize; z-index: 5;
+  box-shadow: 0 0 4px rgba(0,0,0,0.4); pointer-events: auto;
+}
+#scrubber-year {
+  color: #fff; font-size: 12px; font-weight: 600; min-width: 36px; text-align: right;
+}
+
+/* Marker cluster overrides */
+.marker-cluster {
+  border-radius: 50% !important;
+}
+.marker-cluster div {
+  border-radius: 50% !important; font-family: Aptos, 'Segoe UI', Calibri, sans-serif !important;
+  font-size: 12px !important; font-weight: 600 !important;
+}
+
+/* MOBILE */
+@media (max-width: 768px) {
+  #sidebar { position: absolute; left: 0; bottom: 0; top: 0; z-index: 900; }
+  #sidebar.collapsed { margin-left: -300px; }
+  #sidebar-toggle { z-index: 910; }
+  #header h1 span { display: none; }
+  #search-input { width: 120px; }
+  #region-bar { padding: 6px 8px; gap: 4px; }
+  .region-pill { padding: 4px 8px; font-size: 11px; min-height: 32px; }
+  #legend { bottom: 8px; left: 8px; padding: 8px 10px; }
+  #map-footer { display: none; }
+}
+
+/* Animations */
+@keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.3); } }
+.marker-active { animation: pulse 0.8s ease-in-out 3; }
+
+/* Group filters in places tab */
+.group-toggles { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+.group-toggle {
+  font-size: 10px; padding: 3px 8px; border-radius: 10px; border: 1px solid #ddd;
+  background: #fff; cursor: pointer; transition: all 0.15s;
+}
+.group-toggle.active { color: #fff; border-color: transparent; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div id="header">
+  <h1>Charles James Black<span>Places and Routes 1897-1986</span></h1>
+  <div id="search-box">
+    <input id="search-input" type="text" placeholder="Search places, events..." autocomplete="off"/>
+    <span id="search-count"></span>
+    <button class="search-nav" id="search-prev" title="Previous">&#9650;</button>
+    <button class="search-nav" id="search-next" title="Next">&#9660;</button>
+  </div>
+  <button id="btn-reset" title="Reset map view">Reset</button>
+</div>
+
+<!-- REGION BAR -->
+<div id="region-bar"></div>
+
+<!-- MAIN -->
+<div id="main">
+  <div id="sidebar">
+    <div id="sidebar-tabs">
+      <div class="sidebar-tab active" data-tab="journey">Journey</div>
+      <div class="sidebar-tab" data-tab="timeline">Timeline</div>
+      <div class="sidebar-tab" data-tab="places">Places</div>
+    </div>
+    <div class="sidebar-content">
+      <div id="tab-journey" class="tab-panel active"></div>
+      <div id="tab-timeline" class="tab-panel"></div>
+      <div id="tab-places" class="tab-panel"></div>
+    </div>
+  </div>
+  <button id="sidebar-toggle" title="Toggle sidebar">&#9664;</button>
+  <div id="map-wrap">
+    <div id="map"></div>
+    <div id="legend"></div>
+    <div id="map-footer">
+      Compiled 15 June 2026 from Pa_Memoir_Expanded_Narrative_v18_20260615. Basemap: CARTO Voyager, &copy; OpenStreetMap contributors &copy; CARTO.<br>
+      Companion documents: Pa_Place_Names_Register_v1 and Pa_Then_and_Now_Compendium_v1 in Foundation Documents.
+    </div>
+  </div>
+</div>
+
+<!-- SCRUBBER -->
+<div id="scrubber">
+  <span id="scrubber-label">1897</span>
+  <div id="scrubber-track"></div>
+  <span id="scrubber-year">1986</span>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<script src="https://unpkg.com/leaflet-polylinedecorator@1.6.0/dist/leaflet.polylineDecorator.js"></script>
+<script>
+/* ===== DATA ===== */
+const PLACES = [{"id": "hednesford", "name": "Hednesford, Staffordshire", "pa": "", "lat": 52.7123, "lon": -2.001, "group": "early", "status": "Same", "modern": "Hednesford, Staffordshire, England", "story": "Charles is born here on 19 October 1897, in a coal town on the edge of Cannock Chase.", "then": "A working coalfield town. The West Cannock company sank three pits from 1869 and winding gear stood along the skyline.", "now": "The pits are gone. The last Cannock Chase colliery closed in 1993 and the Museum of Cannock Chase now tells the mining story. Hednesford is a commuter town.", "lift": "The town of his birth was black with coal grit. The city of his childhood was honey-coloured stone.", "src": "Victoria County History of Staffordshire vol. 5; Museum of Cannock Chase", "flags": [], "shape": "circle", "dur": "M"}, {"id": "bath", "name": "Bath, Somerset", "pa": "", "lat": 51.3811, "lon": -2.359, "group": "early", "status": "Same", "modern": "Bath, Somerset, England", "story": "The family moves here in Charles's infancy. He grows up a grocer's son in the city of stone and water.", "then": "An Edwardian spa city of about 49,000 people, limestone crescents climbing the hills above the Avon.", "now": "A UNESCO World Heritage city (listed 1987, and again in 2021 among the Great Spa Towns of Europe). The Georgian streetscape Charles knew is largely intact.", "lift": "The city he walked as a boy is the one place on his route that has barely changed at all.", "src": "UNESCO World Heritage List; Bath Record Office", "flags": [], "shape": "circle", "dur": "L"}, {"id": "portsmouth", "name": "Portsmouth, Royal Navy Signal School", "pa": "", "lat": 50.798, "lon": -1.091, "group": "early", "status": "Role gone, site remains", "modern": "HMNB Portsmouth, Hampshire, England", "story": "In September 1913 a fifteen-year-old reports here and gives his age as nineteen. The recruiting sergeant accepts it.", "then": "The Royal Navy at its peacetime peak. The Home Fleet at Spithead, dreadnoughts in the harbour, and the navy's signal school training boys in Morse.", "now": "Still the Royal Navy's principal base. The Historic Dockyard alongside holds HMS Victory and the Mary Rose. The signal school function moved away long ago.", "lift": "The harbour where his lie was accepted still trains the Royal Navy.", "src": "National Museum of the Royal Navy; Royal Navy", "flags": [], "shape": "diamond", "dur": "M"}, {"id": "deal", "name": "Royal Marine Depot, Deal, Kent", "pa": "", "lat": 51.2225, "lon": 1.402, "group": "early", "status": "Role gone, site remains", "modern": "Walmer and Deal, Kent, England (former Royal Marines Depot)", "story": "Charles does his recruit training here, on the Georgian parade grounds facing the sea.", "then": "Home of Royal Marines training since the eighteenth century, wind off the Channel crossing the parade ground.", "now": "The depot closed in 1996, after the 1989 IRA bombing of the Royal Marines School of Music. The barracks survive as housing, and the Royal Marines connection is commemorated rather than lived.", "lift": "The parade ground where he drilled now echoes to nothing louder than gulls.", "src": "Royal Marines Museum; Historic England", "flags": [], "shape": "diamond", "dur": "M"}, {"id": "forton", "name": "Forton Barracks, Gosport", "pa": "", "lat": 50.802, "lon": -1.135, "group": "early", "status": "Vanished but site known", "modern": "St Vincent College, Gosport, Hampshire, England", "story": "Posted here on completing training, spring 1914, as the fleet gathers at Spithead.", "then": "An RMLI barracks across the harbour from Portsmouth.", "now": "The barracks became HMS St Vincent, a boys' training establishment, and the site is now St Vincent College. The gateway and some buildings survive.", "lift": "A sixth-form college stands where the Royal Marine Light Infantry mustered.", "src": "Gosport Society; Historic England", "flags": [], "shape": "diamond", "dur": "M"}, {"id": "eastney", "name": "Eastney Barracks, Portsmouth", "pa": "", "lat": 50.788, "lon": -1.053, "group": "early", "status": "Role gone, site remains", "modern": "Eastney, Portsmouth, England (residential)", "story": "Charles trains at the Royal Marine depot at Eastney before the Gallipoli embarkation.", "then": "The principal RMLI barracks at Portsmouth, drill on the seafront parade.", "now": "The Royal Marines left in 1991. The barracks buildings are now apartments. The Royal Marines Museum, long housed here, moved to the Historic Dockyard.", "lift": "The officers' mess where bugles sounded is now waterfront flats.", "src": "National Museum of the Royal Navy", "flags": [], "shape": "diamond", "dur": "M"}, {"id": "ostend", "name": "Ostend", "pa": "", "lat": 51.229, "lon": 2.912, "group": "antwerp", "status": "Same", "modern": "Oostende, Belgium", "story": "The Marine Brigade lands here on 27 August 1914, four days after Mons.", "then": "A fashionable Belgian seaside resort turned disembarkation port for the Royal Marines.", "now": "Belgium's principal seaside city. The seafront promenade and casino quarter stand where the brigade came ashore.", "lift": "A holiday pier received the first British marines of the war.", "src": "Jerrold, The Royal Naval Division (1923); Blumberg (1927)", "flags": [], "shape": "dot", "dur": "S"}, {"id": "dunkirk", "name": "Dunkirk", "pa": "", "lat": 51.0344, "lon": 2.3768, "group": "antwerp", "status": "Same", "modern": "Dunkerque, France", "story": "Base for the Marine Brigade before Antwerp in 1914. In 1940 Charles crosses to these beaches with three towed boats and helps lift the army off.", "then": "A fortified French Channel port. In 1940, ten miles of open beach under bombardment, the sea as calm as a millpond.", "now": "A major industrial port. The 1940 evacuation is commemorated by the Dunkirk Memorial and Operation Dynamo museum, and the beaches at Malo-les-Bains are holiday sand again.", "lift": "The same town bookends both his wars, twenty-six years apart.", "src": "Jerrold (1923); Imperial War Museum, Operation Dynamo", "flags": ["dual:ww2"], "shape": "dot", "dur": "S"}, {"id": "antwerp", "name": "Antwerp", "pa": "", "lat": 51.2213, "lon": 4.3997, "group": "antwerp", "status": "Same", "modern": "Antwerpen, Belgium", "story": "The siege of October 1914. Charles's battalion holds trenches as the forts fall and the city burns.", "then": "A fortress city ringed by obsolete forts, under fire from German super-heavy howitzers, its sky lit by burning oil tanks.", "now": "Belgium's second city and Europe's second-largest port. The ring forts survive as parks and museums. In 2014 the family walked Charles's ground here on the centenary pilgrimage.", "lift": "The forts that were supposed to be impregnable are picnic grounds now.", "src": "Jerrold (1923); city of Antwerp heritage records", "flags": [], "shape": "triangle", "dur": "S"}, {"id": "burcht", "name": "Burcht", "pa": "Birght", "lat": 51.205, "lon": 4.339, "group": "antwerp", "status": "Same", "modern": "Burcht, municipality of Zwijndrecht, Belgium", "story": "On the left bank of the Scheldt, Charles watches the refugee column that stays with him for seven decades.", "then": "A village road south of Antwerp choked with families fleeing the bombardment, prams and carts and priests among them.", "now": "A quiet residential district inside greater Antwerp, the Scheldt dyke a walking path.", "lift": "The road of the refugee column is a Sunday cycle route.", "src": "Whitehouse, Belgium in War (1915); modern Zwijndrecht municipality", "flags": [], "shape": "triangle", "dur": "S"}, {"id": "zwijndrecht", "name": "Zwijndrecht", "pa": "Zwyndrecht / Zyndrecht", "lat": 51.214, "lon": 4.327, "group": "antwerp", "status": "Same", "modern": "Zwijndrecht, Antwerp province, Belgium", "story": "The withdrawal route across the Scheldt runs through here as the city falls.", "then": "Polder villages on the left bank, the escape corridor for army and refugees alike.", "now": "An industrial and residential municipality absorbed into the port's left-bank development.", "lift": "", "src": "Jerrold (1923)", "flags": [], "shape": "triangle", "dur": "S"}, {"id": "kemseke", "name": "Kemzeke", "pa": "Kemseke", "lat": 51.212, "lon": 4.087, "group": "antwerp", "status": "Name changed", "modern": "Kemzeke, municipality of Stekene, Belgium", "story": "The train carrying the battalion and refugees from Burcht is attacked here. Women and children are killed. The battalion has marched 32 miles without food.", "then": "A village railway halt on the line west, in flat polder country.", "now": "Spelled Kemzeke today, a village in Stekene municipality. The railway line is gone. Its bed is now a cycle route.", "lift": "The rails where the train was shot up are now a cycle path through beet fields.", "src": "Belgium State Archives; local heritage records", "flags": [], "shape": "dot", "dur": "S"}, {"id": "zelzate", "name": "Zelzate", "pa": "Selzaete", "lat": 51.197, "lon": 3.808, "group": "antwerp", "status": "Same", "modern": "Zelzate, East Flanders, Belgium", "story": "Survivors of Charles's battalion escape on foot to this border town, where the roads run west towards Bruges and the coast.", "then": "A canal town on the Dutch border, the last gap before internment in neutral Holland.", "now": "A small industrial town on the Ghent-Terneuzen canal. The border it guarded is now an unmarked line inside the EU.", "lift": "The border that meant internment or escape is now a road sign.", "src": "Jerrold (1923)", "flags": [], "shape": "dot", "dur": "S"}, {"id": "bruges", "name": "Bruges", "pa": "", "lat": 51.2093, "lon": 3.2247, "group": "antwerp", "status": "Same", "modern": "Brugge, Belgium", "story": "The escape route west from Zelzate runs towards Bruges and the coast.", "then": "A medieval cloth city behind the lines, briefly a Royal Naval Division staging point.", "now": "One of Europe's most visited preserved medieval cities.", "lift": "", "src": "Jerrold (1923)", "flags": ["transit"], "shape": "dot", "dur": "S"}, {"id": "mons", "name": "Mons", "pa": "", "lat": 50.4542, "lon": 3.9523, "group": "antwerp", "status": "Same", "modern": "Mons, Hainaut, Belgium", "story": "Charles writes that he was at 'the retreat from Mons'. His unit was at Ostend and Antwerp. The Mons Star and the Old Contemptibles carry the name through to the memoir's ending.", "then": "Site of the BEF's first battle, 23 August 1914.", "now": "A Walloon university city. The Mons battlefield sites are marked, and the St Symphorien cemetery holds the war's first and last Commonwealth dead.", "lift": "He claimed the retreat as his own because the Star on his chest said he had earned it.", "src": "Hansard; standard BEF histories", "flags": ["contextual"], "shape": "dot", "dur": "S"}, {"id": "avonmouth", "name": "Avonmouth, Bristol", "pa": "", "lat": 51.501, "lon": -2.7, "group": "gallipoli", "status": "Same", "modern": "Avonmouth Docks, Bristol, England", "story": "The Portsmouth Battalion embarks here in February 1915 for the Mediterranean.", "then": "A grey winter dockside, troopships loading for an unannounced destination.", "now": "A container and bulk-cargo port inside the Bristol Port Company estate.", "lift": "", "src": "RND embarkation records; Jerrold (1923)", "flags": [], "shape": "dot", "dur": "S"}, {"id": "blandford", "name": "Blandford Camp, Dorset", "pa": "", "lat": 50.871, "lon": -2.108, "group": "gallipoli", "status": "Same", "modern": "Blandford Camp, Dorset, England (Royal Signals)", "story": "Boat drill and divisional training before embarkation.", "then": "The Royal Naval Division's great tented camp on the Dorset downs.", "now": "A serving military base, home of the Royal Corps of Signals and its museum, a neat closing of Charles's circle.", "lift": "The camp where he practised landings now teaches the army's signallers.", "src": "Royal Signals Museum", "flags": [], "shape": "diamond", "dur": "M"}, {"id": "malta", "name": "Malta, Grand Harbour", "pa": "", "lat": 35.8989, "lon": 14.5146, "group": "gallipoli", "status": "Same", "modern": "Valletta Grand Harbour, Malta", "story": "The convoy calls here in 1915. Forty years later Charles returns for Sea Slug sea trials aboard HMS Girdle Ness.", "then": "The Mediterranean Fleet's limestone fortress harbour, unchanged in role since the Knights of St John.", "now": "A World Heritage harbour city. The Royal Navy left in 1979 and cruise ships berth beneath the bastions.", "lift": "The harbour received him twice, forty years apart, under two different ensigns of duty.", "src": "Gallipoli Association ships list; Royal Navy records", "flags": ["dual:woomera"], "shape": "dot", "dur": "S"}, {"id": "mudros", "name": "Mudros, Lemnos", "pa": "", "lat": 39.871, "lon": 25.26, "group": "gallipoli", "status": "Name changed", "modern": "Moudros, Lemnos, Greece", "story": "The staging harbour for the landings. The greatest armada yet assembled fills the bay.", "then": "A bare Aegean anchorage crammed with battleships, transports and hospital ships.", "now": "A quiet fishing town. Two Commonwealth war cemeteries above the bay hold the campaign's dead, including men who died of wounds on the hospital ships.", "lift": "The harbour that held an armada now holds caiques.", "src": "CWGC; Gallipoli Association", "flags": [], "shape": "dot", "dur": "S"}, {"id": "skyros", "name": "Trebuki Bay, Skyros", "pa": "Trebuki", "lat": 38.76, "lon": 24.555, "group": "gallipoli", "status": "Name changed", "modern": "Tris Boukes Bay, Skyros, Greece", "story": "Rupert Brooke lectures the men on Greece and Troy, dies of septicaemia on 23 April, and is buried by his friends in an olive grove before midnight. Charles records it in two sentences and remembers it for sixty years.", "then": "A deserted three-mouthed bay where the fleet anchored on the eve of the landings.", "now": "Still remote. Brooke's marble grave stands in the olive grove, maintained under CWGC care, one of the most visited literary graves in Greece.", "lift": "The poet who lectured him on Troy lies in the olive grove still.", "src": "CWGC; rupertbrookeonskyros.com", "flags": [], "shape": "dot", "dur": "S"}, {"id": "helles", "name": "Cape Helles", "pa": "", "lat": 40.046, "lon": 26.179, "group": "gallipoli", "status": "Same", "modern": "Cape Helles, Gallipoli Peninsula, T\u00fcrkiye", "story": "February 1915: Charles's party lands with the demolition teams and walks two miles inland unopposed. Summer 1915: trench warfare with Gamage catapults.", "then": "The peninsula's southern tip, first silenced forts, later a grinding trench line.", "now": "Dominated by the Helles Memorial obelisk, which carries over 20,000 names of the missing, Royal Naval Division men among them.", "lift": "He walked two miles inland in February and met no one. In April the same ground cost thousands.", "src": "CWGC Helles Memorial; Aspinall-Oglander official history", "flags": [], "shape": "triangle", "dur": "M"}, {"id": "seddelbahr", "name": "Sedd-el-Bahr", "pa": "Sedd-el-Bahr", "lat": 40.044, "lon": 26.19, "group": "gallipoli", "status": "Name changed", "modern": "Sedd\u00fclbahir, \u00c7anakkale province, T\u00fcrkiye", "story": "The fort village above V Beach, target of the February demolition landings.", "then": "An Ottoman fort battered by naval gunfire.", "now": "The restored Sedd\u00fclbahir fortress reopened in 2021 as a museum within the Gallipoli Historical Site.", "lift": "", "src": "Turkish Directorate of Gallipoli Historical Site", "flags": [], "shape": "triangle", "dur": "S"}, {"id": "gabatepe", "name": "Gaba Tepe", "pa": "", "lat": 40.211, "lon": 26.273, "group": "gallipoli", "status": "Name changed", "modern": "Kabatepe, T\u00fcrkiye", "story": "The intended landing beach. The tows came ashore a mile and a half north of it, and everything followed from that.", "then": "A low headland above open, gentle beach, the ground the plan assumed.", "now": "Kabatepe harbour is the ferry point for G\u00f6k\u00e7eada island, with a simulation museum nearby.", "lift": "The beach they were meant to land on is where the tourist ferries leave.", "src": "Bean, The Story of Anzac; Gallipoli Historical Site", "flags": [], "shape": "dot", "dur": "S"}, {"id": "anzac", "name": "Anzac Cove", "pa": "Anzac", "lat": 40.243, "lon": 26.281, "group": "gallipoli", "status": "Same", "modern": "Anzac Cove (Anzak Koyu), T\u00fcrkiye", "story": "3.30 am, 25 April 1915. Charles lands with the twelve-man reconnaissance party, one of the first British marines ashore.", "then": "Six hundred metres of shingle by twenty, under bluffs, the funnel for an entire army corps.", "now": "A protected commemorative site within the Gallipoli Historical National Park. The Anzac Day dawn service is held at the adjacent commemorative site each 25 April.", "lift": "The beach that funnelled 27,000 men is quiet enough to hear the water on the shingle.", "src": "Gallipoli Historical Site; AWM", "flags": [], "shape": "triangle", "dur": "M"}, {"id": "ariburnu", "name": "Ari Burnu", "pa": "", "lat": 40.247, "lon": 26.279, "group": "gallipoli", "status": "Same", "modern": "Ar\u0131burnu, T\u00fcrkiye", "story": "The headland at the cove's north end. From here \u015eefik Aker's patrols watch the moonlit sea fill with ships.", "then": "A knuckle of cliff between the landing beach and North Beach.", "now": "Ar\u0131burnu cemetery sits on the point, and Atat\u00fcrk's 1934 words to the Anzac mothers are carved nearby.", "lift": "The headland the Turks watched from now carries their words of reconciliation.", "src": "Uyar, The Ottoman Defence Against the Anzac Landing; CWGC", "flags": [], "shape": "triangle", "dur": "S"}, {"id": "watsonspier", "name": "Watson's Pier", "pa": "", "lat": 40.241, "lon": 26.283, "group": "gallipoli", "status": "Vanished but site known", "modern": "Anzac Cove foreshore, T\u00fcrkiye", "story": "Built by Stan Watson, the Australian signals officer Charles met at the landing and kept for life. The friendship ends in Adelaide seventy years later.", "then": "The timber pier that landed stores and evacuated wounded, built under fire.", "now": "The piles are gone. The site is identified in commemorative literature, and Watson is remembered as among the last Australians to leave at the evacuation.", "lift": "The pier his lifelong friend built under fire has dissolved into the water it served.", "src": "AWM; Watson's Pier (Funder, 2014)", "flags": [], "shape": "dot", "dur": "S"}, {"id": "hellspit", "name": "Hell Spit", "pa": "", "lat": 40.24, "lon": 26.282, "group": "gallipoli", "status": "Same", "modern": "Queensland Point / Hell Spit, Anzac Cove", "story": "The southern lip of the cove in the terrain Charles climbed out of.", "then": "The southern boundary of the crowded beach.", "now": "Beach Cemetery on the spit holds John Simpson Kirkpatrick of the donkey.", "lift": "", "src": "CWGC Beach Cemetery", "flags": [], "shape": "dot", "dur": "S"}, {"id": "plugges", "name": "Plugge's Plateau", "pa": "", "lat": 40.245, "lon": 26.285, "group": "gallipoli", "status": "Same", "modern": "Plugge's Plateau, Gallipoli", "story": "The first level footing above the landing beach.", "then": "A scrub tableland reached by climbing the bluffs under fire.", "now": "A small CWGC cemetery crowns it, the steep approach unchanged.", "lift": "", "src": "CWGC", "flags": [], "shape": "triangle", "dur": "S"}, {"id": "shrapnel", "name": "Shrapnel Valley", "pa": "", "lat": 40.24, "lon": 26.287, "group": "gallipoli", "status": "Same", "modern": "Shrapnel Valley (Korku Deresi), Gallipoli", "story": "The twisting supply gully inland from the beach, swept by registered Turkish guns.", "then": "The main artery to the front posts, walked at night, shelled by day.", "now": "Shrapnel Valley Cemetery, 683 graves among the pines.", "lift": "The valley named for what fell into it is the shadiest place on the old battlefield.", "src": "CWGC", "flags": [], "shape": "triangle", "dur": "S"}, {"id": "quinns", "name": "Quinn's Post", "pa": "Quinns", "lat": 40.238, "lon": 26.295, "group": "gallipoli", "status": "Same", "modern": "Quinn's Post (Bomba S\u0131rt\u0131), Gallipoli", "story": "Charles's party is thrown into the most dangerous post on the perimeter, bombs and bayonets across a few metres of scrub.", "then": "Opposing trenches close enough to throw a cricket ball between, the most feared address at Anzac.", "now": "Quinn's Post Cemetery and the Turkish Bomba S\u0131rt\u0131 memorial face each other across the old no man's land, a two-minute walk apart.", "lift": "The two front lines are now two memorials a stone's throw apart, which is exactly what they always were.", "src": "CWGC; Bean", "flags": [], "shape": "triangle", "dur": "S"}, {"id": "courtneys", "name": "Courtney's Post", "pa": "Courtneys", "lat": 40.236, "lon": 26.295, "group": "gallipoli", "status": "Same", "modern": "Courtney's and Steel's Post, Gallipoli", "story": "The companion post in Charles's sector of the ridge.", "then": "Held by the 14th Battalion AIF. Albert Jacka won Australia's first VC of the war here, weeks after Charles's party arrived on the ridge.", "now": "Courtney's and Steel's Post Cemetery marks the line.", "lift": "", "src": "CWGC; AWM", "flags": [], "shape": "triangle", "dur": "S"}, {"id": "popes", "name": "Pope's Hill", "pa": "", "lat": 40.239, "lon": 26.293, "group": "gallipoli", "status": "Same", "modern": "Pope's Hill, Gallipoli", "story": "The failed night attack Charles describes as 'the most complete and hopeless confusion'. Ellis Silas signalled and sketched here in the same weeks.", "then": "A bare knob between Quinn's and the Nek, attacked by moonlight.", "now": "4th Battalion Parade Ground Cemetery lies below the hill.", "lift": "", "src": "CWGC; Silas, Crusading at Anzac (1916)", "flags": [], "shape": "triangle", "dur": "S"}, {"id": "nek", "name": "The Nek", "pa": "", "lat": 40.246, "lon": 26.295, "group": "gallipoli", "status": "Same", "modern": "The Nek, Gallipoli", "story": "The narrow saddle above Charles's sector, scene of the 7 August light horse charge.", "then": "A ridge crossing the width of two tennis courts.", "now": "The Nek Cemetery holds mostly unidentified men where the four waves fell.", "lift": "", "src": "CWGC; Bean", "flags": ["contextual"], "shape": "triangle", "dur": "S"}, {"id": "bloodyangle", "name": "Bloody Angle", "pa": "", "lat": 40.24, "lon": 26.294, "group": "gallipoli", "status": "Same", "modern": "Bloody Angle, Gallipoli", "story": "Part of the Silas sector narrative in the first fortnight's fighting.", "then": "A murderous kink in the line near Quinn's.", "now": "Unmarked scrub between the cemeteries, the name preserved on battlefield maps.", "lift": "", "src": "Bean; Silas (1916)", "flags": [], "shape": "triangle", "dur": "S"}, {"id": "rhododendron", "name": "Rhododendron Ridge", "pa": "Rhododendren", "lat": 40.249, "lon": 26.296, "group": "gallipoli", "status": "Same", "modern": "Rhododendron Spur, Gallipoli", "story": "Saunders's detail, Charles among them, holds this spur with some Australians for three days with no water and no rations.", "then": "A narrow scrub spur running up towards Chunuk Bair, misnamed for its flowering oleander.", "now": "Walkers on the Chunuk Bair track cross it. The scrub is the same maquis the signallers were swallowed by.", "lift": "The spur where twelve signallers vanished into the scrub is a walking track now.", "src": "Watson account; Bean", "flags": [], "shape": "triangle", "dur": "S"}, {"id": "battleship", "name": "Battleship Hill", "pa": "", "lat": 40.25, "lon": 26.3, "group": "gallipoli", "status": "Same", "modern": "Battleship Hill (D\u00fcztepe), Gallipoli", "story": "Part of the high ground that decided every day at Anzac.", "then": "Kemal's counterattack ground on 25 April.", "now": "Bare hilltop within the historical park.", "lift": "", "src": "Bean", "flags": ["contextual"], "shape": "triangle", "dur": "S"}, {"id": "chunuk", "name": "Chunuk Bair", "pa": "", "lat": 40.252, "lon": 26.303, "group": "gallipoli", "status": "Name changed", "modern": "Conk Bay\u0131r\u0131, T\u00fcrkiye", "story": "The summit objective that was never held, looming above Charles's whole eight months.", "then": "The peak the August offensive died for.", "now": "The New Zealand National Memorial and the colossal Atat\u00fcrk monument share the summit.", "lift": "The hilltop nobody could hold now holds memorials to both sides.", "src": "CWGC; Gallipoli Historical Site", "flags": [], "shape": "triangle", "dur": "S"}, {"id": "hill971", "name": "Hill 971", "pa": "", "lat": 40.26, "lon": 26.306, "group": "gallipoli", "status": "Name changed", "modern": "Koca\u00e7imentepe, T\u00fcrkiye", "story": "The highest point of the Sari Bair range, named on Charles's mental map of the heights.", "then": "The summit of the range, never reached.", "now": "Koca\u00e7imentepe, within the national park.", "lift": "", "src": "Bean", "flags": ["contextual"], "shape": "triangle", "dur": "S"}, {"id": "thirdridge", "name": "Third Ridge (Top\u00e7ular S\u0131rt\u0131)", "pa": "", "lat": 40.233, "lon": 26.315, "group": "gallipoli", "status": "Uncertain", "modern": "Gun Ridge / Top\u00e7ular S\u0131rt\u0131, Gallipoli (approximate)", "story": "\u015eefik Aker's objective on the morning of 25 April: occupy it before the enemy. He did, and the Anzac perimeter never reached it.", "then": "The dominating inland ridge of the Aker quotation.", "now": "Farm and scrub country inside the historical site. Position shown approximate.", "lift": "", "src": "Uyar (2015)", "flags": ["approx"], "shape": "triangle", "dur": "S"}, {"id": "maltepe", "name": "Maltepe plain", "pa": "", "lat": 40.228, "lon": 26.345, "group": "gallipoli", "status": "Uncertain", "modern": "Inland plain east of Anzac sector (approximate)", "story": "Aker's two battalions cross it at speed at dawn on 25 April.", "then": "Open ground between the Ottoman camps and the coastal ridges.", "now": "Farmland. Position shown approximate.", "lift": "", "src": "Uyar (2015)", "flags": ["approx"], "shape": "triangle", "dur": "S"}, {"id": "kilitbahir", "name": "Kilitbahir", "pa": "", "lat": 40.153, "lon": 26.378, "group": "gallipoli", "status": "Same", "modern": "Kilitbahir, T\u00fcrkiye", "story": "The Narrows forts the fleet failed to silence on 18 March, the failure that made the landings necessary.", "then": "Ottoman forts a mile across the strait from \u00c7anakkale.", "now": "The restored fortress is a museum, and the hillside carries the giant Dur Yolcu memorial inscription.", "lift": "", "src": "\u00c7anakkale Wars Gallipoli Historical Site", "flags": ["contextual"], "shape": "dot", "dur": "S"}, {"id": "canakkale", "name": "\u00c7anakkale", "pa": "", "lat": 40.146, "lon": 26.408, "group": "gallipoli", "status": "Same", "modern": "\u00c7anakkale, T\u00fcrkiye", "story": "The town across the Narrows, the campaign's name on the Turkish side.", "then": "An Ottoman garrison town under naval bombardment.", "now": "A university city of 180,000 and the gateway for battlefield visitors, with the 1915 \u00c7anakkale Bridge, the world's longest suspension span, crossing the strait since 2022.", "lift": "The strait the fleet could not force is now crossed in six minutes by car.", "src": "T\u00fcrkiye tourism and bridge authority records", "flags": ["contextual"], "shape": "dot", "dur": "S"}, {"id": "suez", "name": "Suez Canal camps, Egypt", "pa": "", "lat": 30.59, "lon": 32.27, "group": "gallipoli", "status": "Same", "modern": "Ismailia area, Egypt (approximate)", "story": "After the evacuation, the Division reorganises in the desert camps along the Canal, early 1916.", "then": "Tent lines in the sand, pyramids on leave-passes.", "now": "The Canal zone is a military and shipping corridor. Position shown approximate.", "lift": "", "src": "Jerrold (1923)", "flags": ["approx"], "shape": "dot", "dur": "S"}, {"id": "stavros", "name": "Gulf of Stavros", "pa": "Stavros", "lat": 40.665, "lon": 23.7, "group": "gallipoli", "status": "Name changed", "modern": "Strymonikos Gulf, Stavros, Greece", "story": "Three weeks of police work and patrols on the Salonica front's seaward flank.", "then": "Olive groves and low hills on the Macedonian coast, a quiet interlude.", "now": "A holiday coast. Stavros beach is ringed by tavernas each summer.", "lift": "The quietest posting of his war is now a beach resort.", "src": "Salonica campaign histories", "flags": [], "shape": "dot", "dur": "S"}, {"id": "salonica", "name": "Salonica", "pa": "Salonica", "lat": 40.6401, "lon": 22.9444, "group": "gallipoli", "status": "Name changed", "modern": "Thessaloniki, Greece", "story": "The base city of the forgotten front, anchor of the Stavros detour.", "then": "A crowded Allied base city of a dozen armies and languages.", "now": "Greece's second city. The great 1917 fire and a century of growth have erased most of the wartime town.", "lift": "", "src": "Salonica campaign histories", "flags": ["transit"], "shape": "dot", "dur": "S"}, {"id": "marseille", "name": "Marseille", "pa": "", "lat": 43.2965, "lon": 5.3698, "group": "western", "status": "Same", "modern": "Marseille, France", "story": "The Division's likely port of arrival in France, May 1916. Pa does not name it. Inferred from RND movement records.", "then": "The Mediterranean gateway for armies arriving from the east.", "now": "France's second city and largest port.", "lift": "", "src": "RND movement histories", "flags": ["inferred"], "shape": "dot", "dur": "S"}, {"id": "abbeville", "name": "Abbeville", "pa": "", "lat": 50.106, "lon": 1.836, "group": "western", "status": "Same", "modern": "Abbeville, Somme, France", "story": "The Division concentrates here in May 1916 for stores and equipment, Lewis guns replacing the old weapons.", "then": "A rear-area supply town on the Somme river.", "now": "A market town rebuilt after heavy 1940 bombing.", "lift": "", "src": "Jerrold (1923)", "flags": [], "shape": "dot", "dur": "S"}, {"id": "angres", "name": "Angres-Souchez sector", "pa": "Angres-Souchez", "lat": 50.4, "lon": 2.752, "group": "western", "status": "Same", "modern": "Angres and Souchez, Pas-de-Calais, France", "story": "The Battalion takes over this sector on 17 July 1916, between Lens and Vimy Ridge.", "then": "Shattered mining villages on a line the French had bled for in 1915.", "now": "Rebuilt villages beneath the Lorette ridge. The mining basin around them is now, in its entirety, a UNESCO World Heritage cultural landscape.", "lift": "The coalfield he defended is heritage-listed for the same slag heaps the guns once registered on.", "src": "UNESCO Nord-Pas-de-Calais Mining Basin listing; Jerrold", "flags": [], "shape": "triangle", "dur": "S"}, {"id": "lens", "name": "Lens", "pa": "", "lat": 50.433, "lon": 2.833, "group": "western", "status": "Same", "modern": "Lens, Pas-de-Calais, France", "story": "The German-held mining town opposite Charles's dugout on Vimy Ridge.", "then": "A wrecked colliery town inside the German line.", "now": "Home of the Louvre-Lens museum, opened 2012 on a levelled pithead.", "lift": "The town he watched through a periscope now houses an outstation of the Louvre.", "src": "Louvre-Lens", "flags": [], "shape": "triangle", "dur": "S"}, {"id": "vimy", "name": "Vimy Ridge", "pa": "", "lat": 50.379, "lon": 2.774, "group": "western", "status": "Same", "modern": "Canadian National Vimy Memorial, France", "story": "Charles works a BF wireless set from a dugout on the ridge, twenty-four days without relief, and intercepts German conversations through buried wires.", "then": "The chalk escarpment dominating the Douai plain, taken by the Canadians in April 1917.", "now": "The preserved battlefield is Canadian soil in perpetuity. Walter Allward's white memorial crowns the ridge, with trench lines and craters kept under the pines.", "lift": "The ridge he lived inside for a month is the most visited preserved trenchscape on the front.", "src": "Veterans Affairs Canada", "flags": [], "shape": "triangle", "dur": "S"}, {"id": "lorette", "name": "Notre-Dame-de-Lorette", "pa": "", "lat": 50.401, "lon": 2.719, "group": "western", "status": "Same", "modern": "Notre-Dame-de-Lorette, Ablain-Saint-Nazaire, France", "story": "The artillery observation post in the priority-message episode behind Charles's court martial and acquittal.", "then": "A fought-over spur with a French observation post.", "now": "France's largest national war cemetery, 40,000 graves, and since 2014 the Ring of Remembrance bearing 580,000 names of every nationality without distinction.", "lift": "The hill of his court martial now lists friend and enemy alphabetically together.", "src": "M\u00e9morial Notre-Dame-de-Lorette", "flags": [], "shape": "triangle", "dur": "S"}, {"id": "ypres", "name": "Ypres", "pa": "", "lat": 50.851, "lon": 2.886, "group": "western", "status": "Name changed", "modern": "Ieper, Belgium", "story": "The Salient. Three successive attacks in the Passchendaele fighting, wireless dying in the mud.", "then": "A levelled medieval city inside a salient shelled from three sides.", "now": "Rebuilt stone for stone. The Last Post has sounded at the Menin Gate every evening since 1928, and the In Flanders Fields Museum fills the rebuilt Cloth Hall.", "lift": "Buglers have sounded the Last Post at the gate every night for nearly a century.", "src": "Last Post Association; In Flanders Fields Museum", "flags": [], "shape": "triangle", "dur": "S"}, {"id": "pilkem", "name": "Pilkem Ridge", "pa": "", "lat": 50.897, "lon": 2.87, "group": "western", "status": "Same", "modern": "Pilkem, Ieper, Belgium", "story": "Named in Charles's account of the Salient fighting.", "then": "The opening objective of Third Ypres, 31 July 1917.", "now": "Farmland with cemetery signposts.", "lift": "", "src": "Standard Third Ypres histories", "flags": [], "shape": "triangle", "dur": "S"}, {"id": "passchendaele", "name": "Passchendaele", "pa": "Passchendaele", "lat": 50.897, "lon": 3.02, "group": "western", "status": "Name changed", "modern": "Passendale, Zonnebeke, Belgium", "story": "The mud Charles called 'the primeval slime'. Accumulators leak, aerials sink, the wireless war drowns.", "then": "A name that became the war's synonym for mud and futility.", "now": "Tyne Cot, the largest Commonwealth war cemetery anywhere, lies below the village, and the Memorial Museum Passchendaele 1917 holds reconstructed dugouts.", "lift": "The largest war cemetery on earth stands in the field he crossed three times.", "src": "CWGC Tyne Cot; Memorial Museum Passchendaele 1917", "flags": [], "shape": "triangle", "dur": "S"}, {"id": "amiens", "name": "Amiens", "pa": "", "lat": 49.894, "lon": 2.296, "group": "western", "status": "Same", "modern": "Amiens, Somme, France", "story": "8 August 1918. Charles operates the wireless inside a tank through the whole battle, reporting six tanks lost to direct hits. Zero hour 6.30 in Pa's figures.", "then": "The hinge of the war's turning battle, Ludendorff's black day of the German Army.", "now": "A cathedral city. The Australian Corps Memorial at nearby Le Hamel and the Franco-Australian Museum at Villers-Bretonneux keep the 1918 story.", "lift": "The battle he fought from inside a steel box is the one historians call the beginning of the end.", "src": "Australian War Memorial; Sir John Monash Centre", "flags": [], "shape": "triangle", "dur": "S"}, {"id": "witton", "name": "GEC Works, Witton, Birmingham", "pa": "", "lat": 52.516, "lon": -1.886, "group": "interwar", "status": "Role gone, site remains", "modern": "Witton, Birmingham, England", "story": "Charles installs the broadcast transmitter that becomes Station 5IT, joins the BBC as Engineer in Charge, and becomes Uncle Sparks of Children's Hour, teaching Birmingham's children Morse.", "then": "Red-brick electrical works. 5IT opens 15 November 1922, day one of British broadcasting outside London.", "now": "The GEC works are industrial estates. 5IT's successor lives on as BBC Radio Birmingham became BBC WM. The BBC marked its centenary in 2022 from the empire 5IT helped begin.", "lift": "British regional broadcasting began in a factory where he soldered the transmitter.", "src": "BBC History of the BBC; Science and Media Museum", "flags": [], "shape": "ring", "dur": "M"}, {"id": "glasgow_portdundas", "name": "Glasgow, Port Dundas", "pa": "", "lat": 55.876, "lon": -4.244, "group": "interwar", "status": "Role gone, site remains", "modern": "Port Dundas, Glasgow, Scotland", "story": "Charles transferred to BBC Station 5SC at Port Dundas Power Station in July 1923. The station broadcast from the power station in the north of Glasgow. Staff list of 10 January 1924 lists him as one of four engineers under V.A.M. Bulow. He lodged c/o Craig, 68 Cambridge Drive. Last Glasgow correspondence May 1924.", "then": "Port Dundas Power Station housed the BBC Glasgow transmitter alongside its electrical plant. Station 5SC opened 6 March 1923.", "now": "The power station has been demolished. The Port Dundas area has been redeveloped. The BBC moved to Queen Margaret Drive and later to Pacific Quay.", "lift": "The power station that housed Glasgow's first broadcasts is gone; BBC Scotland now broadcasts from Pacific Quay on the Clyde.", "src": "BBC salary records, Percy Edgar letter 2 Aug 1923, BBC staff list 10 Jan 1924", "flags": [], "x": "Glasgow's BBC station 5SC was Scotland's first broadcasting station, opening from Port Dundas Power Station on 6 March 1923.", "w": "https://en.wikipedia.org/wiki/BBC_Radio_Scotland", "shape": "ring", "dur": "M"}, {"id": "walsall_bridge_st", "name": "Walsall, Bridge Street", "pa": "", "lat": 52.586, "lon": -1.982, "group": "interwar", "status": "Name changed", "modern": "Bridge Street, Walsall, West Midlands, England", "story": "After his illness and recovery, Charles ran his own business as an electrical contractor from Bridge Street, Walsall, 1925 to 1927. The memoir omits this entirely. His CV is the sole source.", "then": "A Black Country market town with strong manufacturing and metalworking traditions.", "now": "Walsall is a large town in the West Midlands metropolitan area, known for its leather industry heritage.", "lift": "Charles set up as an electrical contractor in a Black Country town; the memoir never mentions it.", "src": "Charles's CV (family papers)", "flags": [], "x": "Walsall is a Black Country town historically known for leather goods and metalworking, part of the West Midlands conurbation.", "w": "https://en.wikipedia.org/wiki/Walsall", "shape": "ring", "dur": "M"}, {"id": "coventry", "name": "Coventry", "pa": "", "lat": 52.4081, "lon": -1.5106, "group": "interwar", "status": "Same", "modern": "Coventry, West Midlands, England", "story": "Recovery at GEC Stoke works, the long quiet years, 399 Battery searchlights, then Armstrong Whitworth and Sea Slug. The Blitz of 14 November 1940 burns the city while Irene watches the glow from Snitterfield.", "then": "Britain's motor and electrical city, medieval centre intact until one November night.", "now": "The bombed cathedral ruin stands joined to Basil Spence's 1962 cathedral as a single reconciliation site, and the city was UK City of Culture 2021.", "lift": "The burned cathedral was left open to the sky on purpose, roofless beside its successor.", "src": "Coventry Cathedral; Historic Coventry Trust", "flags": ["dual:ww2"], "shape": "circle", "dur": "L"}, {"id": "accra", "name": "Accra, Gold Coast", "pa": "", "lat": 5.6037, "lon": -0.187, "group": "interwar", "status": "Name changed", "modern": "Accra, Ghana", "story": "Not in the memoir. Family documents record about 18 months as a GEC installation engineer in West Africa in the interwar years.", "then": "Capital of the British Gold Coast colony, early radio infrastructure arriving.", "now": "Capital of independent Ghana (1957), a city of over two million.", "lift": "", "src": "Pa Memoir Document Review Findings (2026)", "flags": ["offmemoir", "approx"], "shape": "ring", "dur": "M"}, {"id": "freetown", "name": "Freetown, Sierra Leone", "pa": "", "lat": 8.4844, "lon": -13.2344, "group": "interwar", "status": "Same", "modern": "Freetown, Sierra Leone", "story": "Not in the memoir. The second recorded station of the West Africa installation work.", "then": "A British colonial port capital on one of the world's great natural harbours.", "now": "Capital of Sierra Leone, independent since 1961.", "lift": "", "src": "Pa Memoir Document Review Findings (2026)", "flags": ["offmemoir", "approx"], "shape": "ring", "dur": "M"}, {"id": "narvik", "name": "Narvik", "pa": "Narvic", "lat": 68.4385, "lon": 17.4273, "group": "ww2", "status": "Same", "modern": "Narvik, Nordland, Norway", "story": "April 1940. A signals detachment lands with the expedition, has no air support, and is bombed off in three days, in Pa's account.", "then": "An Arctic iron-ore port fought over by six navies inside the fjords.", "now": "The Narvik War Museum faces the square, and the ore railway to Kiruna still loads ships beneath the Ofotfjord peaks.", "lift": "The fjord that swallowed destroyers is on the cruise itineraries now.", "src": "Narvik War Museum", "flags": [], "shape": "triangle", "dur": "S"}, {"id": "catterick", "name": "Catterick", "pa": "", "lat": 54.376, "lon": -1.732, "group": "ww2", "status": "Same", "modern": "Catterick Garrison, North Yorkshire, England", "story": "Charles organises radio repair and maintenance for an army that has left its equipment in France.", "then": "HQ Signals and a sprawl of wartime workshops on the Yorkshire moors' edge.", "now": "The British Army's largest garrison, still expanding.", "lift": "", "src": "British Army", "flags": [], "shape": "diamond", "dur": "M"}, {"id": "aldershot", "name": "Aldershot Workshops", "pa": "", "lat": 51.248, "lon": -0.756, "group": "ww2", "status": "Same", "modern": "Aldershot, Hampshire, England", "story": "Ordnance Mechanical Engineer at the army's largest workshop. Eight operational tanks in the country, seven of them stripped down on his floor.", "then": "The home of the British Army, racing to rebuild after Dunkirk.", "now": "Still a garrison town, the Victorian barracks largely rebuilt.", "lift": "For one summer the nation's armoured reserve was effectively his workshop queue.", "src": "REME Museum", "flags": [], "shape": "diamond", "dur": "M"}, {"id": "ashford", "name": "Ashford Command Workshop, Kent", "pa": "", "lat": 51.148, "lon": 0.873, "group": "ww2", "status": "Role gone, site remains", "modern": "Ashford, Kent, England", "story": "Promoted Captain, second in command of the new Command Workshop in Hellfire Corner. The ATS sergeant shoots the tail off a low-flying bomber from the twin Vickers on his office roof.", "then": "A railway workshop town under the Battle of Britain's main air corridor, later under the V-1s.", "now": "A growth town on the high-speed line to London, the international station standing near the railway works site.", "lift": "Eurostar trains pass the spot where his chief clerk shot down a bomber.", "src": "Kent History and Library Centre", "flags": [], "shape": "diamond", "dur": "L"}, {"id": "dover", "name": "Priory Ordnance Depot, Dover", "pa": "", "lat": 51.125, "lon": 1.312, "group": "ww2", "status": "Role gone, site remains", "modern": "Dover Priory area, Kent, England", "story": "Charles's outstation. He is here on 28 May 1940 when the first Dunkirk evacuees come in, and crosses with three towed boats.", "then": "The receiving port of the evacuation, shelled across the Strait for four years.", "now": "The evacuation is interpreted in the secret wartime tunnels under Dover Castle, from which Ramsay ran Operation Dynamo.", "lift": "The tunnels that ran the evacuation he rowed in are open to visitors above his old depot.", "src": "English Heritage, Dover Castle", "flags": [], "shape": "triangle", "dur": "S"}, {"id": "snitterfield", "name": "Snitterfield", "pa": "", "lat": 52.236473, "lon": -1.687002, "group": "ww2", "status": "Same", "modern": "Snitterfield, Warwickshire, England", "story": "Irene's war. Three children in a village in the Forest of Arden, training aircraft overhead, Coventry burning on the northern horizon.", "then": "A farming village with a new RAF airfield on its western fields and WAAF women billeted at Bearley.", "now": "The airfield is the Stratford on Avon Gliding Club. The village remains small, Shakespeare's grandfather's parish.", "lift": "The runways built for war now launch gliders over Shakespeare's family fields.", "src": "Stratford on Avon Gliding Club; Snitterfield local history. <a href=\"https://en.wikipedia.org/wiki/Snitterfield\" target=\"_blank\" rel=\"noopener\">Read more</a>", "flags": [], "shape": "circle", "dur": "L"}, {"id": "spinney_house", "name": "The Spinney (the family home)", "pa": "", "lat": 52.2310089, "lon": -1.6884567, "group": "ww2", "status": "Same", "modern": "Off King's Lane / Ingon Lane, Snitterfield", "story": "The family home through the war. Irene, known to her grandchildren as Nanny and to others as O.R. (other ranks, since Charles was the Major), kept the three children here while Charles was away on service. Peter's boyhood house.", "then": "A house at the edge of the village beside its wood, the safe corner Charles found for his family.", "now": "Still a house called the Spinney, the name carved on a stone plaque by the door, with a separate sign for the Spinney Flat at the rear. The family have used the name since Peter's boyhood in the 1940s.", "lift": "The haven a father chose, while he served, for his wife and three children. A spinney is a small worked copse, and the house took its name from the wood beside it.", "src": "Family knowledge and testimony; house-name plaques photographed; map pin. <a href=\"https://en.wikipedia.org/wiki/Snitterfield\" target=\"_blank\" rel=\"noopener\">Read more</a>", "flags": [], "shape": "circle", "dur": "M"}, {"id": "spinney_woods", "name": "The Spinney Woods", "pa": "", "lat": 52.2311931, "lon": -1.6877257, "group": "ww2", "status": "Uncertain", "modern": "Wood south of Snitterfield village", "story": "The wood the boy Peter played in. In 2014, aged seventy-seven, he cleared the fence and went straight back into it, naming every plant. The name the Spinney Woods is the family's own, not a confirmed map label.", "then": "A damp, shaded wood on a slope, the floor under a green carpet of ground cover, tall conifers and broadleaves overhead.", "now": "Much the same, a quiet wood off the lane.", "lift": "Lear's crown of weeds, hemlock and nettle and cuckoo-flower, grew here, four centuries after Shakespeare's family farmed the parish.", "src": "Family knowledge; 2014 photographs; map pin. Name unconfirmed. <a href=\"https://en.wikipedia.org/wiki/Snitterfield\" target=\"_blank\" rel=\"noopener\">Read more</a>", "flags": ["approx"], "shape": "pin", "dur": "S"}, {"id": "peters_oak", "name": "Peter's Oak Tree", "pa": "", "lat": 52.2308611, "lon": -1.6856944, "group": "ww2", "status": "Same", "modern": "Standard oak in the field east of the wood", "story": "A single oak in the high pasture east of the wood. Under it, Peter said in 2014, a girl once gave him a hiding.", "then": "A field oak above the village, in the boy's playground.", "now": "Still standing in open pasture with a long view down the Avon valley.", "lift": "The family name for one tree in a field, kept because a boy remembered it for seventy years.", "src": "Family knowledge; 2014 photographs; map pin. <a href=\"https://en.wikipedia.org/wiki/Snitterfield\" target=\"_blank\" rel=\"noopener\">Read more</a>", "flags": [], "shape": "pin", "dur": "S"}, {"id": "white_horse_hill", "name": "White Horse Hill", "pa": "", "lat": 52.2339, "lon": -1.6857, "group": "ww2", "status": "Same", "modern": "White Horse Hill, Snitterfield, CV37 0LD", "story": "A named hill and road on the south-east edge of the village, above the family's wood and field.", "then": "Open ground on the village edge, the high side of the parish.", "now": "A residential lane of houses with the same long views.", "lift": "The high edge of the boy's world, looking out over the Forest of Arden.", "src": "Snitterfield Parish Council; property records. <a href=\"https://en.wikipedia.org/wiki/Snitterfield\" target=\"_blank\" rel=\"noopener\">Read more</a>", "flags": [], "shape": "pin", "dur": "S"}, {"id": "snitterfield_war_memorial", "name": "Snitterfield War Memorial and Bench", "pa": "", "lat": 52.232015, "lon": -1.684275, "group": "ww2", "status": "Same", "modern": "Village green, Snitterfield (OS SP 2166 5936)", "story": "The village war memorial cross, with a stone bench at its foot carrying lines adapted from Shakespeare's King John: the noble expanse visible from this spot was Shakespeare's favourite countryside, and the men named on the monument gave their lives for that England which never shall lie at the proud foot of a conqueror.", "then": "A village remembering its dead. The cross carries thirty-five names from the first war and seven from the second, the second group unveiled in 1948, several of them fallen on the very fronts Charles helped to supply.", "now": "The cross and the inscribed bench still stand on the green.", "lift": "The noble expanse on the bench is the family's own field and view, tying Peter's Oak to Shakespeare's favourite countryside.", "src": "IWM memorial 38528; Geograph. <a href=\"https://www.iwm.org.uk/memorials/item/memorial/38528\" target=\"_blank\" rel=\"noopener\">Read more</a>", "flags": [], "shape": "pin", "dur": "S"}, {"id": "hampton_lucy", "name": "Hampton Lucy (Christina Harris)", "pa": "", "lat": 52.1942, "lon": -1.6386, "group": "ww2", "status": "Same", "modern": "Hampton Lucy, Warwickshire, England", "story": "Three miles from the Spinney, Christina Harris of Hampton Lucy became the first girl in the Army to fit wireless sets into Valentine and Matilda tanks for the desert, the very work Charles had pioneered under fire in 1917. He kept her photograph from the Stratford paper.", "then": "A nursemaid before the war, an A.T.S. radio mechanic during it.", "now": "A quiet Avon-side village east of Stratford.", "lift": "A girl from the next village fitting the tank radios Charles had invented a generation before.", "src": "Stratford-upon-Avon Herald clipping (family collection); ATS records.", "flags": ["contextual"], "shape": "pin", "dur": "S"}, {"id": "bearley", "name": "Bearley", "pa": "", "lat": 52.236, "lon": -1.748, "group": "ww2", "status": "Same", "modern": "Bearley, Warwickshire, England", "story": "The WAAF and nursing camp near St Mary's church, two miles from Irene.", "then": "430 service women under canvas and huts by the church.", "now": "A commuter village. The camp has returned to fields.", "lift": "", "src": "Snitterfield and Bearley local history", "flags": ["contextual"], "shape": "pin", "dur": "S"}, {"id": "christchurch", "name": "SRDE Christchurch", "pa": "", "lat": 50.735, "lon": -1.778, "group": "ww2", "status": "Role gone, site remains", "modern": "Christchurch, Dorset, England", "story": "Charles's late-war station under Colonel Raby at the Signals Research and Development Establishment, from which the Backfire summons arrives.", "then": "A secret signals research site by the harbour.", "now": "The establishment moved away in 1980. Housing and a retail park cover the site, with a memorial plaque on Barrack Road.", "lift": "", "src": "Christchurch History Society", "flags": [], "shape": "diamond", "dur": "M"}, {"id": "croydon", "name": "Croydon Airport", "pa": "", "lat": 51.356, "lon": -0.117, "group": "ww2", "status": "Vanished but site known", "modern": "Airport House, Croydon, London, England", "story": "Forty-eight hours' notice, an Auster from Christchurch, and the flight to occupied Germany begins here.", "then": "London's pre-war international airport, by 1945 a military staging field.", "now": "Closed 1959. The art deco terminal survives as Airport House with a visitor centre, the grass field built over.", "lift": "Britain's first international airport is an office building with a Spitfire gate guard.", "src": "Croydon Airport Society", "flags": [], "shape": "dot", "dur": "S"}, {"id": "hamburg", "name": "Hamburg, Hotel Atlantic", "pa": "", "lat": 53.5584, "lon": 10.001, "group": "backfire", "status": "Same", "modern": "Hotel Atlantic Kempinski, Hamburg, Germany", "story": "Met by intelligence officers and billeted at the Atlantic, intact amid a flattened city, before the drive north.", "then": "A grand hotel standing in a sea of rubble after the 1943 firestorm.", "now": "Still one of Germany's grand hotels, on the Outer Alster. The city around it was rebuilt within a generation.", "lift": "The hotel that survived the firestorm still serves breakfast on the Alster.", "src": "Hotel Atlantic records; Hamburg city history", "flags": [], "shape": "ring", "dur": "M"}, {"id": "cuxhaven", "name": "Cuxhaven", "pa": "Auxhaven", "lat": 53.861, "lon": 8.694, "group": "backfire", "status": "Same", "modern": "Cuxhaven, Lower Saxony, Germany", "story": "Headquarters of the Special Projectiles Operations Group. Charles, Superintendent of Assembly, rebuilds the V-2 from wreckage and named in the Daily Telegraph, 16 October 1945.", "then": "A North Sea port at the Elbe mouth, requisitioned for Operation Backfire.", "now": "A fishing and ferry port and seaside resort. Backfire is commemorated by local heritage markers and in the Smithsonian-held official report, of which Charles kept Copy No. 81.", "lift": "He kept Copy No. 81 of the secret report in a locked steel chest for the rest of his life.", "src": "Operation Backfire Report (Smithsonian Libraries); v2rocket.com", "flags": [], "shape": "ring", "dur": "M"}, {"id": "altenwalde", "name": "Altenwalde launch site", "pa": "", "lat": 53.825, "lon": 8.655, "group": "backfire", "status": "Vanished but site known", "modern": "Altenwalde, Cuxhaven, Germany", "story": "The Krupp proofing ground where the three British V-2s rise: 2 October, 4 October, and the 15 October press demonstration, Operation Clitterhouse.", "then": "Workshops, a launch table and a concrete flame pit on the heath.", "now": "A training area and heathland. Traces of the range survive and are documented by rocketry historians. Charles's own photographs of the launches reached V-2 historians in 2017 as material new to the record.", "lift": "His private photographs, unseen for seventy years, are now part of the V-2 historical record.", "src": "v2rocket.com; Hall, 'The Other End of a Trajectory' (University of Kent)", "flags": [], "shape": "ring", "dur": "S"}, {"id": "peenemunde", "name": "Peenem\u00fcnde", "pa": "Peenemude", "lat": 54.137, "lon": 13.774, "group": "backfire", "status": "Role gone, site remains", "modern": "Peenem\u00fcnde Historical Technical Museum, Usedom, Germany", "story": "The birthplace of the rocket Charles rebuilt. Referenced in his account of the V-2's origins.", "then": "The Baltic research station where von Braun's team created the A-4, built and supplied with concentration-camp labour.", "now": "The power station hall is the Peenem\u00fcnde Historical Technical Museum, which addresses both the engineering and the slave labour of Mittelbau-Dora.", "lift": "The museum gives the rocket's victims equal floor space with its engineers.", "src": "Peenem\u00fcnde Historical Technical Museum; Mittelbau-Dora Memorial", "flags": ["contextual"], "shape": "ring", "dur": "S"}, {"id": "baginton", "name": "Armstrong Whitworth, Baginton", "pa": "", "lat": 52.368, "lon": -1.48, "group": "woomera", "status": "Vanished but site known", "modern": "Coventry Airport, Baginton, England", "story": "Senior technical engineer on Sea Slug, the job that carries the family to Australia.", "then": "The aircraft works and aerodrome that built Whitleys, now turning to guided missiles.", "now": "Armstrong Whitworth closed in 1965. The aerodrome continues as Coventry Airport, with the Midland Air Museum on its edge.", "lift": "", "src": "Midland Air Museum", "flags": [], "shape": "ring", "dur": "M"}, {"id": "aberporth", "name": "Aberporth range", "pa": "", "lat": 52.133, "lon": -4.543, "group": "woomera", "status": "Same", "modern": "MOD Aberporth, Ceredigion, Wales", "story": "The Welsh range too small for Sea Slug, where trials were once snowed off for three weeks.", "then": "A rain-swept clifftop range over Cardigan Bay.", "now": "Still a defence test range, now specialising in uncrewed aircraft trials.", "lift": "From a range where it always rained to one where it never did.", "src": "MOD/QinetiQ Aberporth", "flags": [], "shape": "ring", "dur": "M"}, {"id": "oronsay", "name": "SS Oronsay passage, Tilbury", "pa": "", "lat": 51.463, "lon": 0.364, "group": "woomera", "status": "Role gone, site remains", "modern": "Port of Tilbury, Essex, England", "story": "1953. The family sails for Australia aboard the Orient Line's SS Oronsay, the route running via Gibraltar, the Suez Canal and Colombo to Adelaide.", "then": "The Orient Line's emigrant and liner route at full flow.", "now": "Tilbury is a container and cruise port. Oronsay was scrapped in 1975 as the jet age ended the liner run.", "lift": "The six-week voyage that carried the family no longer exists as a journey anyone can take.", "src": "Orient Line records (endnote 83)", "flags": [], "shape": "dot", "dur": "S"}, {"id": "mallala", "name": "Mallala airfield", "pa": "", "lat": -34.467, "lon": 138.506, "group": "woomera", "status": "Role gone, site remains", "modern": "Mallala, South Australia (motorsport park)", "story": "RAAF Bristol Freighters deliver the missiles from England to this airfield north of Adelaide.", "then": "An RAAF station handling the freight of the missile age.", "now": "Mallala Motor Sport Park runs club racing on the old airfield circuit.", "lift": "The missile airhead is now a club racetrack.", "src": "RAAF historical records; Mallala Motor Sport Park", "flags": [], "shape": "dot", "dur": "S"}, {"id": "woomeravillage", "name": "Woomera Village", "pa": "Wommera", "lat": -31.144, "lon": 136.825, "group": "woomera", "status": "Same", "modern": "Woomera, South Australia", "story": "Charles watches the town grow from a few huts to 5,000 people, with 115 degree summers, kangaroos at dawn, and a golf course with sand greens.", "then": "A purpose-built closed town at its 1950s-60s peak, the busiest rocket range outside the superpowers.", "now": "Still Defence-run within the RAAF Woomera Range Complex, population down to a couple of hundred, with a heritage centre and open-air missile park.", "lift": "The town of five thousand he watched grow has shrunk back towards the desert, its missiles parked on lawns as monuments.", "src": "Defence Australia; National Archives of Australia", "flags": [], "shape": "circle", "dur": "L"}, {"id": "rangehead", "name": "Range Head, Woomera", "pa": "", "lat": -30.95, "lon": 136.53, "group": "woomera", "status": "Uncertain", "modern": "Woomera Prohibited Area, South Australia (approximate)", "story": "The launcher, simulated ship's control gear and Type 901 radar, with a five-ton crane in the workshop. Sea Slug flies here.", "then": "The instrumented head of the world's longest overland rocket range.", "now": "Inside the Woomera Prohibited Area, the largest land-based test range on earth, still closed. Position shown approximate.", "lift": "The range he worked is still so secret its ground cannot be casually visited seventy years on.", "src": "Defence Australia", "flags": ["approx"], "shape": "ring", "dur": "M"}, {"id": "adelaide", "name": "Adelaide", "pa": "", "lat": -34.9285, "lon": 138.6007, "group": "adelaide", "status": "Same", "modern": "Adelaide, South Australia", "story": "The family settles in 1953. Charles elects to stay at retirement, and Adelaide is home for the last thirty-three years.", "then": "A quiet, orderly city of half a million between the hills and the gulf.", "now": "A city of 1.4 million, its Anzac Day march still passing the war memorial Charles marched to with the Old Contemptibles.", "lift": "", "src": "City of Adelaide", "flags": [], "shape": "circle", "dur": "L"}, {"id": "hawthorn", "name": "Egmont Terrace, Hawthorn", "pa": "", "lat": -34.953, "lon": 138.616, "group": "adelaide", "status": "Same", "modern": "Hawthorn, South Australia", "story": "The family home of the Adelaide years, the quiet street where Pa is Pa to ten grandchildren.", "then": "A leafy eastern-suburbs street of stone villas.", "now": "Much as it was. The suburb remains quiet and residential.", "lift": "", "src": "Family records", "flags": [], "shape": "circle", "dur": "L"}, {"id": "stpeters", "name": "St Peter's Cathedral, North Adelaide", "pa": "", "lat": -34.91, "lon": 138.594, "group": "adelaide", "status": "Same", "modern": "St Peter's Cathedral, North Adelaide, South Australia", "story": "The Old Contemptibles' banner is retired here, and Charles attends the November 1980 Remembrance service at eighty-three.", "then": "The Anglican cathedral, keeper of the veterans' colours.", "now": "Unchanged in role. The cathedral still holds Remembrance services beneath the retired colours.", "lift": "The banner he marched under hangs in the cathedral he prayed in.", "src": "St Peter's Cathedral, Adelaide", "flags": [], "shape": "pin", "dur": "S"}, {"id": "kingspark", "name": "Kings Park Nursing Home", "pa": "", "lat": -34.954, "lon": 138.585, "group": "adelaide", "status": "Uncertain", "modern": "Kings Park, South Australia (approximate)", "story": "Charles dies here on 17 May 1986, aged 88, 376 days after Watson.", "then": "A suburban nursing home.", "now": "The suburb remains. The specific facility has not been verified on the modern register. Position approximate.", "lift": "", "src": "Death record (endnote 97)", "flags": ["approx"], "shape": "pin", "dur": "S"}, {"id": "centennial", "name": "Centennial Park Cemetery", "pa": "", "lat": -34.987, "lon": 138.605, "group": "adelaide", "status": "Same", "modern": "Centennial Park, Pasadena, South Australia", "story": "Charles is cremated here. So, the year before, was Watson. The two Gallipoli signallers end a few hundred metres apart.", "then": "Adelaide's principal cemetery and crematorium.", "now": "Unchanged in role, with memorial gardens and a service record searchable online.", "lift": "The two friends from the landing beach lie in the same garden.", "src": "Centennial Park Cemetery Authority", "flags": [], "shape": "pin", "dur": "S"}, {"id": "belair", "name": "Sheoak Road, Belair", "pa": "", "lat": -35.001, "lon": 138.62, "group": "adelaide", "status": "Same", "modern": "Belair, South Australia", "story": "Watson's home, from which the 1982 letter confirming the landing is written, aged 94.", "then": "A hills suburb above the city.", "now": "Unchanged, beside Belair National Park.", "lift": "", "src": "Watson letter, 2 February 1982", "flags": ["contextual"], "shape": "pin", "dur": "S"}];
+const ROUTES = [{"id": "r1", "name": "1. Childhood 1897-1913", "group": "early", "inferred": false, "note": "Hednesford to Bath in Charles's infancy.", "pts": [[52.7123, -2.001], [51.3811, -2.359]]}, {"id": "r2", "name": "2. Training 1913-14", "group": "early", "inferred": false, "note": "Signal School, recruit training at Deal, Eastney, then Forton Barracks.", "pts": [[51.3811, -2.359], [50.798, -1.091], [51.2225, 1.402], [50.788, -1.053], [50.802, -1.135]]}, {"id": "r3", "name": "3. Antwerp 1914", "group": "antwerp", "inferred": true, "note": "Ostend landing 27 August, Dunkirk, the siege of Antwerp, the train to Kemzeke, escape on foot to Zelzate and the coast. Return crossing inferred.", "pts": [[50.802, -1.135], [51.05, 1.55], [51.229, 2.912], [51.0344, 2.3768], [51.2213, 4.3997], [51.205, 4.339], [51.214, 4.327], [51.212, 4.087], [51.197, 3.808], [51.2093, 3.2247], [51.229, 2.912]]}, {"id": "r4", "name": "4. Gallipoli 1915-16", "group": "gallipoli", "inferred": true, "note": "Avonmouth via Gibraltar and Malta to Mudros. February demolition landing at Helles, Skyros, the Anzac landing of 25 April, the ridge posts, Helles trenches, evacuation, Egypt. Sea legs follow standard convoy tracks.", "pts": [[51.501, -2.7], [36.05, -5.5], [35.8989, 14.5146], [39.871, 25.26], [40.046, 26.179], [39.871, 25.26], [38.76, 24.555], [40.243, 26.281], [40.238, 26.295], [40.046, 26.179], [40.05, 25.6], [39.871, 25.26], [31.3, 29.7], [30.59, 32.27]]}, {"id": "r5", "name": "5. Salonica detour 1916", "group": "gallipoli", "inferred": true, "note": "Three weeks on the Gulf of Stavros. Exact sailing route inferred.", "pts": [[30.59, 32.27], [35.2, 26.5], [40.6401, 22.9444], [40.665, 23.7]]}, {"id": "r6", "name": "6. Western Front 1916-18", "group": "western", "inferred": true, "note": "Back to France in May 1916, Marseille inferred. Angres-Souchez, Vimy Ridge signals, the Salient, Amiens. Sector moves shown as straight lines.", "pts": [[40.665, 23.7], [40.6401, 22.9444], [36.2, 22.5], [43.2965, 5.3698], [50.106, 1.836], [50.4, 2.752], [50.379, 2.774], [50.433, 2.833], [50.401, 2.719], [50.851, 2.886], [50.897, 3.02], [49.894, 2.296]]}, {"id": "r7", "name": "7. Interwar 1919-39", "group": "interwar", "inferred": true, "note": "Birmingham and the BBC, Glasgow 5SC, Walsall, then Coventry. The West Africa loop (about 18 months, GEC) is documented in family papers but absent from the memoir. Flagged accordingly.", "pts": [[52.516, -1.886], [55.876, -4.244], [52.586, -1.982], [52.4081, -1.5106], [35.95, -5.6], [5.6037, -0.187], [8.4844, -13.2344], [52.4081, -1.5106]]}, {"id": "r8", "name": "8. Second War 1939-45", "group": "ww2", "inferred": true, "note": "Narvik (route to Norway inferred), Catterick, Aldershot, Ashford and the Dunkirk crossings, then SRDE Christchurch.", "pts": [[52.4081, -1.5106], [58.5, -4.0], [68.4385, 17.4273], [58.5, -4.0], [54.376, -1.732], [51.248, -0.756], [51.148, 0.873], [51.125, 1.312], [51.0344, 2.3768], [51.125, 1.312], [50.735, -1.778]]}, {"id": "r9", "name": "9. Operation Backfire 1945", "group": "backfire", "inferred": false, "note": "Auster to Croydon, flight to Hamburg, road to Cuxhaven and the Altenwalde launch site. Air leg drawn direct.", "pts": [[50.735, -1.778], [51.356, -0.117], [52.5, 4.0], [53.5584, 10.001], [53.861, 8.694], [53.825, 8.655]]}, {"id": "r10", "name": "10. Migration 1952-53", "group": "woomera", "inferred": true, "note": "The 1952 reconnaissance was by air. The 1953 family voyage was aboard SS Oronsay via Gibraltar, Port Said, Suez, Aden and Colombo to Australia, the Orient Line's standard track.", "pts": [[51.463, 0.364], [35.95, -5.6], [31.27, 32.3], [29.95, 32.55], [12.6, 43.4], [6.93, 79.85], [-32.05, 115.74], [-34.9285, 138.6007]]}, {"id": "r11", "name": "11. Woomera and Adelaide 1953-86", "group": "adelaide", "inferred": false, "note": "Missile freight through Mallala, the range years, then Hawthorn, the cathedral, Kings Park and Centennial Park. The Malta sea trials aboard HMS Girdle Ness run separately to the Mediterranean.", "pts": [[-34.9285, 138.6007], [-34.467, 138.506], [-31.144, 136.825], [-30.95, 136.53], [-31.144, 136.825], [-34.9285, 138.6007], [-34.953, 138.616], [-34.91, 138.594], [-34.954, 138.585], [-34.987, 138.605]]}];
+const CHRONO = [{"d": "1897, 19 Oct", "a": "0", "e": "Born at Hednesford, Staffordshire; christened 12 Nov. Eldest of eight.", "c": "P", "id": "hednesford"}, {"d": "c.1900-01", "a": "3", "e": "Family settles at Bath; the childhood home.", "c": "P", "id": "bath"}, {"d": "1902 / 1912", "a": "4-14", "e": "Boer War ends; the Titanic and its Marconi operator make wireless heroic.", "c": "H", "id": ""}, {"d": "1913, 11 Sep", "a": "15", "e": "Reports to the Royal Navy Signal School, Portsmouth; gives his age as 19.", "c": "S", "id": "portsmouth"}, {"d": "1914, 20 Mar", "a": "16", "e": "Formal RMLI enlistment; Forton Barracks, Gosport.", "c": "S", "id": "forton"}, {"d": "1914, 4 Aug-10 Oct", "a": "16", "e": "War declared; Ostend 26 Aug; Dunkirk 21 Sep; Antwerp 4 Oct; Churchill orders withdrawal 8 Oct; Antwerp falls 10 Oct.", "c": "S", "id": "antwerp"}, {"d": "1914-15 winter", "a": "17", "e": "Division re-forms at Blandford Camp, Dorset.", "c": "S", "id": "blandford"}, {"d": "1915, 29 Jan-24 Feb", "a": "17", "e": "Orders for overseas; inspected by Churchill and the King; embarks Avonmouth.", "c": "S", "id": "avonmouth"}, {"d": "1915, 25 Apr, 3.30am", "a": "17", "e": "Gallipoli: the Anzac landing, with the Australians.", "c": "S", "id": "anzac"}, {"d": "1915, 13 Jul", "a": "17", "e": "Wounded (shrapnel, left arm).", "c": "S", "id": "anzac"}, {"d": "1915 Dec-1916 Jan", "a": "18", "e": "Anzac and Suvla evacuated; Helles 8-9 Jan; among the last off.", "c": "S", "id": "helles"}, {"d": "1916, May-Jul", "a": "18", "e": "Royal Naval Division returns to France; up to the fighting line.", "c": "S", "id": "marseille"}, {"d": "1916, 12 Sep", "a": "18", "e": "Transferred to 3rd Army Signals, Wireless Telegraph Operator.", "c": "S", "id": "vimy"}, {"d": "1916, 20 Dec", "a": "19", "e": "Promoted senior sergeant.", "c": "S", "id": ""}, {"d": "1917, 27 Aug", "a": "19", "e": "Seconded to the Tank Corps; among the first to work wireless inside a tank.", "c": "S", "id": "pilkem"}, {"d": "1918, 8-9 May", "a": "20", "e": "Charged; open arrest; court martial before Gough at St Omer; charges dismissed.", "c": "S", "id": ""}, {"d": "1918, 8 Aug, 6.30am", "a": "20", "e": "Battle of Amiens; advances in a tank with his wireless set.", "c": "S", "id": "amiens"}, {"d": "1918 late-1919", "a": "21", "e": "Instructor at Signals HQ Bedford and Fenny Stratford; demobilised 20 Feb 1919.", "c": "S", "id": ""}, {"d": "1919-1922", "a": "21-24", "e": "International Western Electric: installation engineer, high-power transmitters.", "c": "C", "id": "witton"}, {"d": "1922, 15 Nov", "a": "25", "e": "Station 5IT begins at Witton, Birmingham; becomes 'Uncle Sparks'.", "c": "C", "id": "witton"}, {"d": "1922-1923", "a": "25", "e": "BBC Birmingham 5IT: assistant engineer from Nov 1922 to June 1923. Uncle Sparks children's broadcasts.", "c": "C", "id": "witton"}, {"d": "1923-1925", "a": "25-27", "e": "BBC Glasgow 5SC: transferred July 1923, staff list Jan 1924. Left BBC by 1925.", "c": "C", "id": "glasgow_portdundas"}, {"d": "c.1923-1924", "a": "26", "e": "Collapse from overwork; weight 6 st 7 lb; 'gas poisoning'; hospitalised.", "c": "P", "id": ""}, {"d": "1925-1927", "a": "27-29", "e": "Own business: Electrical Contractor, Bridge Street, Walsall.", "c": "C", "id": "walsall_bridge_st"}, {"d": "1928, 6 Jun", "a": "30", "e": "Marries Irene Whick (b. 15 Jan 1905, Walsall).", "c": "P", "id": ""}, {"d": "1927-1939", "a": "29-41", "e": "GEC Telephone Works, Coventry; to Chief Inspector. Flood-rescue commendation 1932.", "c": "C", "id": "coventry"}, {"d": "1932, 18 Jan", "a": "34", "e": "Son John Robert Black born, Coventry (also Peter and Patricia).", "c": "P", "id": "coventry"}, {"d": "c.1936-1938", "a": "38-40", "e": "18 months in West Africa: a large Radio Relay System at Accra and Freetown.", "c": "C", "id": "accra"}, {"d": "interwar", "a": "", "e": "Territorial Army; E.D. and bar; 399 Battery R.A. (searchlight), Coventry.", "c": "S", "id": "coventry"}, {"d": "1938, Mar", "a": "40", "e": "TA doubled after the Anschluss; called up as senior warrant officer.", "c": "S", "id": "coventry"}, {"d": "1939, 1-3 Sep", "a": "41", "e": "Germany invades Poland; Britain declares war; battery to war positions.", "c": "H", "id": "coventry"}, {"d": "1939, Oct", "a": "42", "e": "Commissioned Lieutenant, Royal Artillery.", "c": "S", "id": ""}, {"d": "1939, 25 Dec", "a": "42", "e": "King George VI's Christmas broadcast ('Gate of the Year').", "c": "H", "id": ""}, {"d": "1940", "a": "42", "e": "Royal Corps of Signals, 54th Divisional Signals, at Cheshunt, Herts.", "c": "S", "id": ""}, {"d": "1940, Apr", "a": "42", "e": "Norway: Signals detachment at Narvik; bombed off after three days.", "c": "S", "id": "narvik"}, {"d": "1940, mid", "a": "42", "e": "Catterick HQ Signals: organises radio repair from sets long in store.", "c": "S", "id": "catterick"}, {"d": "1940, mid", "a": "42", "e": "Aldershot Workshops: 8 tanks in the army, 7 of them stripped down.", "c": "S", "id": "aldershot"}, {"d": "1940, early war", "a": "42", "e": "Family relocated for safety to Snitterfield, Warwickshire.", "c": "P", "id": "snitterfield"}, {"d": "1940, 28 May", "a": "42", "e": "First Dunkirk evacuees reach Dover; Charles crosses to the beaches.", "c": "S", "id": "dover"}, {"d": "1940, Jul-Nov", "a": "42-43", "e": "Battle of Britain; the ATS sergeant downs a low-flyer; Coventry Blitz 14 Nov.", "c": "S", "id": "ashford"}, {"d": "1941, 19 May", "a": "43", "e": "Transferred to the RAOC; O i/c Production Workshops, Aldershot.", "c": "S", "id": "aldershot"}, {"d": "1941, Dec", "a": "44", "e": "Promoted Captain; to REME Command Workshops, Ashford, Kent, 2nd in command.", "c": "S", "id": "ashford"}, {"d": "c.1942", "a": "44", "e": "Promoted Major; the Coast Defence radar line, Sheppey to Brighton (memoir 22, CV 32).", "c": "S", "id": "ashford"}, {"d": "1942", "a": "44-45", "e": "Posted to SRDE, Christchurch: vehicle radio, the No. 10 Set, mule radio, cable from the air.", "c": "S", "id": "christchurch"}, {"d": "1944, 11 Apr", "a": "46", "e": "Military Identity Card A.440116: height 5 ft 11 1/4 in; gunshot wound left little finger.", "c": "S", "id": ""}, {"d": "1944, summer", "a": "46", "e": "V-1 buzz bombs over Ashford, 'every hour or so' (after D-Day, 6 Jun).", "c": "S", "id": "ashford"}, {"d": "1945", "a": "47", "e": "Operation Backfire / SPOG: Cuxhaven and Altenwalde; first British V-2 launched 2 Oct.", "c": "T", "id": "cuxhaven"}, {"d": "1945, 29 Sep", "a": "47", "e": "SPOG order: carries secret V-2 documents and 16 cases from Cuxhaven to London.", "c": "S", "id": "cuxhaven"}, {"d": "1945", "a": "47-48", "e": "War Office, Staff Major, REME Scales Branch: scales of spares for Signals and Radar.", "c": "S", "id": ""}, {"d": "1948, 20 Jul", "a": "50", "e": "Released from active duty; demobilised as honorary Major, REME.", "c": "S", "id": ""}, {"d": "1949", "a": "51", "e": "Joins Armstrong Whitworth, Armaments Division; 3 months at the Rocket Propulsion Establishment.", "c": "C", "id": "baginton"}, {"d": "1952, 4 Jan", "a": "54", "e": "Official Secrets pass issued (secret-site access).", "c": "C", "id": ""}, {"d": "1953", "a": "55", "e": "Westcott: liquid-fuel motors; Range Safety Officer and Technical Liaison at Aberporth.", "c": "C", "id": "aberporth"}, {"d": "1953-1961", "a": "55-63", "e": "Posted to AWA Australia; family emigrates 1953, settles Adelaide. Sea trials off Malta on HMS Girdle Ness.", "c": "C", "id": "adelaide"}, {"d": "1959", "a": "61", "e": "Nuclear-power investigation for Hawker Siddeley at Australian universities and Lucas Heights.", "c": "C", "id": ""}, {"d": "c.1962-63", "a": "65", "e": "Sea Slug trials completed and the missile accepted; retires; elects to stay in Australia.", "c": "C", "id": "adelaide"}, {"d": "1969, 20 Jul", "a": "71", "e": "Apollo 11 Moon landing, on rocket work he had handled at Cuxhaven.", "c": "H", "id": ""}, {"d": "1978 / 1980 / 1982", "a": "81-84", "e": "Advertiser interview; Remembrance at St Peter's; Watson's RSL letter.", "c": "P", "id": "stpeters"}, {"d": "1985, 5 May", "a": "87", "e": "Lt Col Stanley Holm Watson dies, aged 97.", "c": "P", "id": "belair"}, {"d": "1986, 17 May", "a": "88", "e": "Charles dies at Kings Park Nursing Home; cremated at Centennial Park.", "c": "P", "id": "kingspark"}, {"d": "2003, 19 Mar", "a": "-", "e": "Irene Whick (Black) dies, Adelaide; interred St Columba's, Hawthorn.", "c": "P", "id": "hawthorn"}, {"d": "legacy", "a": "", "e": "Three children married; ten grandchildren (incl. Warwick, b. 1968); great-grandchildren follow.", "c": "P", "id": ""}];
+const GROUPS = {"early": {"label": "Childhood and training 1897-1914", "colour": "#8d6e63"}, "antwerp": {"label": "Antwerp 1914", "colour": "#ef6c00"}, "gallipoli": {"label": "Gallipoli and the Aegean 1915-16", "colour": "#c62828"}, "western": {"label": "Western Front 1916-18", "colour": "#6a1b9a"}, "interwar": {"label": "Interwar and the BBC 1919-39", "colour": "#1565c0"}, "ww2": {"label": "Second War 1939-45", "colour": "#2e7d32"}, "backfire": {"label": "Operation Backfire 1945", "colour": "#00838f"}, "woomera": {"label": "Woomera 1952-65", "colour": "#f9a825"}, "adelaide": {"label": "Adelaide 1953-86", "colour": "#4e342e"}};
+
+/* ===== CONSTANTS ===== */
+const REGION_BOUNDS = {
+  early: [[50.5,-2.5],[53.0,1.5]],
+  antwerp: [[50.0,1.5],[51.5,4.5]],
+  gallipoli: [[29.0,14.0],[42.0,33.0]],
+  western: [[43.0,1.5],[51.5,5.5]],
+  interwar: [[5.0,-14.0],[56.0,1.0]],
+  ww2: [[50.0,-2.0],[69.0,18.0]],
+  backfire: [[50.5,-2.0],[54.5,14.0]],
+  woomera: [[-35.5,136.0],[-30.5,139.0]],
+  adelaide: [[-35.5,138.0],[-34.5,139.0]]
+};
+const CAT_COLOURS = { P:'#8d6e63', C:'#1565c0', S:'#6a1b9a', T:'#00838f', H:'#9e9e9e' };
+const CAT_NAMES = { P:'Personal', C:'Career', S:'Military', T:'Technology', H:'Historical' };
+const SIZE_PX = { L:16, M:12, S:8 };
+const SEA_ROUTES = ['r3','r4','r5','r6','r10'];
+const AIR_ROUTES = ['r9'];
+const YEAR_START = 1897, YEAR_END = 1986;
+
+/* ===== PLACE INDEX ===== */
+const placeById = {};
+PLACES.forEach(p => placeById[p.id] = p);
+
+/* ===== CHRONO BY PLACE ===== */
+function chronoForPlace(id) {
+  return CHRONO.filter(c => c.id === id);
+}
+
+/* ===== ROUTES THROUGH PLACE ===== */
+function routesThroughPlace(p) {
+  const hits = [];
+  ROUTES.forEach(r => {
+    for (const pt of r.pts) {
+      if (Math.abs(pt[0]-p.lat)<0.01 && Math.abs(pt[1]-p.lon)<0.01) {
+        hits.push(r);
+        break;
+      }
+    }
+  });
+  return hits;
+}
+
+/* ===== SVG MARKER SHAPES ===== */
+function markerSVG(shape, colour, size) {
+  const s = SIZE_PX[size] || 12;
+  const half = s/2;
+  let svg = '';
+  switch(shape) {
+    case 'circle':
+      svg = `<circle cx="${half}" cy="${half}" r="${half-1}" fill="${colour}" stroke="#fff" stroke-width="1.5"/>`;
+      break;
+    case 'triangle':
+      svg = `<polygon points="${half},1 ${s-1},${s-1} 1,${s-1}" fill="${colour}" stroke="#fff" stroke-width="1.2"/>`;
+      break;
+    case 'diamond':
+      svg = `<polygon points="${half},1 ${s-1},${half} ${half},${s-1} 1,${half}" fill="${colour}" stroke="#fff" stroke-width="1.2"/>`;
+      break;
+    case 'ring':
+      svg = `<circle cx="${half}" cy="${half}" r="${half-2}" fill="none" stroke="${colour}" stroke-width="2.5"/>`;
+      break;
+    case 'dot':
+      const r = Math.max(half-2, 3);
+      svg = `<circle cx="${half}" cy="${half}" r="${r}" fill="${colour}" opacity="0.85"/>`;
+      break;
+    case 'pin':
+      svg = `<path d="M${half},1 C${s-1},1 ${s-1},${half+2} ${half},${s-1} C1,${half+2} 1,1 ${half},1Z" fill="${colour}" stroke="#fff" stroke-width="1"/>`;
+      break;
+    default:
+      svg = `<circle cx="${half}" cy="${half}" r="${half-1}" fill="${colour}" stroke="#fff" stroke-width="1.5"/>`;
+  }
+  return `<svg width="${s}" height="${s}" viewBox="0 0 ${s} ${s}" xmlns="http://www.w3.org/2000/svg">${svg}</svg>`;
+}
+
+function makeIcon(shape, colour, size) {
+  const s = SIZE_PX[size] || 12;
+  return L.divIcon({
+    html: markerSVG(shape, colour, size),
+    className: '',
+    iconSize: [s, s],
+    iconAnchor: [s/2, s/2],
+    popupAnchor: [0, -s/2 - 4]
+  });
+}
+
+/* ===== CROSS-LINK STORY TEXT ===== */
+function crossLinkStory(story, currentId) {
+  if (!story) return '';
+  let result = story;
+  // Sort place names by length descending to avoid partial matches
+  const sorted = PLACES.filter(p => p.id !== currentId && p.name.length > 3)
+    .sort((a,b) => b.name.length - a.name.length);
+  // Use simple name (before comma) for matching
+  const used = new Set();
+  sorted.forEach(p => {
+    const shortName = p.name.split(',')[0].trim();
+    if (shortName.length < 4 || used.has(shortName)) return;
+    // Skip if already inside an <a> tag
+    const regex = new RegExp('(?<!<[^>]*)\\b(' + shortName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')\\b(?![^<]*>)', 'g');
+    if (regex.test(result)) {
+      result = result.replace(regex, `<a onclick="flyToPlace('${p.id}')" title="Go to ${p.name}">$1</a>`);
+      used.add(shortName);
+    }
+  });
+  return result;
+}
+
+/* ===== POPUP HTML ===== */
+function popupHTML(p) {
+  const g = GROUPS[p.group];
+  const visits = chronoForPlace(p.id);
+  const routes = routesThroughPlace(p);
+  let html = '<div class="popup-inner">';
+  // Title + flags
+  html += `<div class="popup-title">${p.name}</div>`;
+  if (p.flags && p.flags.length) {
+    html += '<div class="popup-flags">';
+    p.flags.forEach(f => html += `<span class="popup-flag">${f}</span>`);
+    html += '</div>';
+  }
+  // Pa's words
+  if (p.pa) {
+    html += `<div class="popup-pa">"${p.pa}" &mdash; Pa's spelling</div>`;
+  }
+  // Meta
+  html += '<div class="popup-meta">';
+  html += `<span class="popup-phase" style="background:${g.colour}">${g.label}</span>`;
+  if (p.status) html += `<span class="popup-status">${p.status}</span>`;
+  html += '</div>';
+  if (p.modern) html += `<div class="popup-modern">${p.modern}</div>`;
+  // Visits
+  if (visits.length) {
+    html += '<div class="popup-visits"><div class="popup-visits-title">Visits</div>';
+    visits.forEach(v => {
+      html += `<div class="popup-visit"><strong>${v.d}</strong> ${v.e}</div>`;
+    });
+    html += '</div>';
+  }
+  // Story
+  if (p.story) {
+    html += `<div class="popup-story">${crossLinkStory(p.story, p.id)}</div>`;
+  }
+  // Then/Now
+  if (p.then || p.now) {
+    html += '<div class="popup-thenow">';
+    if (p.then) html += `<div class="popup-then"><div class="tn-label">Then</div>${p.then}</div>`;
+    if (p.now) html += `<div class="popup-now"><div class="tn-label">Now</div>${p.now}</div>`;
+    html += '</div>';
+  }
+  // Lift
+  if (p.lift) {
+    html += `<div class="popup-lift">${p.lift}</div>`;
+  }
+  // Source
+  if (p.src) {
+    html += `<div class="popup-src">${p.src}</div>`;
+  }
+  // Route badges
+  if (routes.length) {
+    html += '<div class="popup-routes">';
+    routes.forEach(r => {
+      const rg = GROUPS[r.group];
+      html += `<span class="popup-route-badge" style="background:${rg.colour}" onclick="highlightRoute('${r.id}')" title="${r.note}">${r.name}</span>`;
+    });
+    html += '</div>';
+  }
+  html += '</div>';
+  return html;
+}
+
+/* ===== TOOLTIP HTML ===== */
+function tooltipHTML(p) {
+  const visits = chronoForPlace(p.id);
+  const dates = visits.map(v => v.d).join('; ');
+  const firstSentence = p.story ? p.story.split('.')[0] + '.' : '';
+  let html = '<div class="marker-tooltip">';
+  html += `<strong>${p.name}</strong>`;
+  if (dates) html += `<span class="tt-date">${dates}</span><br>`;
+  if (firstSentence) html += `<span class="tt-story">${firstSentence}</span>`;
+  html += '</div>';
+  return html;
+}
+
+/* ===== INITIALISE MAP ===== */
+const map = L.map('map', {
+  zoomControl: true,
+  minZoom: 2,
+  maxZoom: 18,
+  worldCopyJump: true
+}).setView([42, 10], 4);
+
+L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+  attribution: '&copy; <a href="https://openstreetmap.org">OpenStreetMap</a> &copy; <a href="https://carto.com">CARTO</a>',
+  subdomains: 'abcd',
+  maxZoom: 19
+}).addTo(map);
+
+/* Minimap - simple overview */
+const minimapLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+  subdomains: 'abcd', maxZoom: 19
+});
+
+/* ===== MARKERS ===== */
+const markers = {};
+const markerLayer = L.layerGroup().addTo(map);
+const clusterGroup = L.markerClusterGroup({
+  maxClusterRadius: 30,
+  disableClusteringAtZoom: 13,
+  iconCreateFunction: function(cluster) {
+    const count = cluster.getChildCount();
+    // Use gallipoli colour
+    return L.divIcon({
+      html: `<div style="background:rgba(198,40,40,0.8);color:#fff;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.3)">${count}</div>`,
+      className: '',
+      iconSize: [32, 32],
+      iconAnchor: [16, 16]
+    });
+  }
+});
+
+const clusterGroups = ['gallipoli'];
+
+PLACES.forEach(p => {
+  const g = GROUPS[p.group];
+  const icon = makeIcon(p.shape, g.colour, p.dur);
+  const m = L.marker([p.lat, p.lon], { icon });
+  m.bindPopup(popupHTML(p), { maxWidth: 360, className: '' });
+  m.bindTooltip(tooltipHTML(p), { direction: 'top', offset: [0, -8], className: '' });
+  m._placeId = p.id;
+  m._placeGroup = p.group;
+
+  if (clusterGroups.includes(p.group)) {
+    clusterGroup.addLayer(m);
+  } else {
+    markerLayer.addLayer(m);
+  }
+  markers[p.id] = m;
+});
+
+clusterGroup.addTo(map);
+
+/* ===== ROUTES ===== */
+const routeLayers = {};
+const routeDecorators = {};
+
+ROUTES.forEach(r => {
+  const g = GROUPS[r.group];
+  const latlngs = r.pts.map(pt => [pt[0], pt[1]]);
+  const isSea = SEA_ROUTES.includes(r.id);
+  const isAir = AIR_ROUTES.includes(r.id);
+
+  const line = L.polyline(latlngs, {
+    color: g.colour,
+    weight: 2.5,
+    opacity: 0.7,
+    dashArray: isSea ? '8 6' : isAir ? '4 8' : null,
+    className: ''
+  }).addTo(map);
+
+  line._routeId = r.id;
+  routeLayers[r.id] = line;
+
+  // Arrow decorators
+  const patterns = [{
+    offset: '15%',
+    repeat: '80px',
+    symbol: L.Symbol.arrowHead({
+      pixelSize: isSea ? 8 : isAir ? 10 : 7,
+      polygon: true,
+      pathOptions: {
+        color: g.colour,
+        fillColor: g.colour,
+        fillOpacity: 1,
+        weight: 0
+      }
+    })
+  }];
+
+  const dec = L.polylineDecorator(line, { patterns }).addTo(map);
+  routeDecorators[r.id] = dec;
+});
+
+/* ===== FLY TO PLACE ===== */
+function flyToPlace(id) {
+  const m = markers[id];
+  if (!m) return;
+  const p = placeById[id];
+  map.flyTo([p.lat, p.lon], Math.max(map.getZoom(), 10), { duration: 1 });
+  // If clustered, spiderfy
+  if (clusterGroups.includes(p.group)) {
+    clusterGroup.zoomToShowLayer(m, () => {
+      setTimeout(() => m.openPopup(), 300);
+    });
+  } else {
+    setTimeout(() => m.openPopup(), 600);
+  }
+}
+
+function highlightRoute(rid) {
+  const line = routeLayers[rid];
+  if (!line) return;
+  line.setStyle({ weight: 5, opacity: 1 });
+  map.fitBounds(line.getBounds(), { padding: [40,40] });
+  setTimeout(() => line.setStyle({ weight: 2.5, opacity: 0.7 }), 3000);
+}
+
+/* ===== REGION BAR ===== */
+const regionBar = document.getElementById('region-bar');
+let activeRegion = null;
+
+Object.entries(GROUPS).forEach(([key, g]) => {
+  const btn = document.createElement('button');
+  btn.className = 'region-pill';
+  btn.style.background = g.colour;
+  btn.innerHTML = `<span class="dot"></span>${g.label.split(' ')[0]}`;
+  btn.title = g.label;
+  btn.onclick = () => {
+    document.querySelectorAll('.region-pill').forEach(b => b.classList.remove('active'));
+    if (activeRegion === key) {
+      activeRegion = null;
+      map.setView([42, 10], 4);
+    } else {
+      activeRegion = key;
+      btn.classList.add('active');
+      const b = REGION_BOUNDS[key];
+      if (b) map.fitBounds(b, { padding: [30,30], maxZoom: 14 });
+    }
+  };
+  regionBar.appendChild(btn);
+});
+
+/* ===== SIDEBAR TABS ===== */
+document.querySelectorAll('.sidebar-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.sidebar-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+  });
+});
+
+/* Sidebar toggle */
+const sidebar = document.getElementById('sidebar');
+const sidebarToggle = document.getElementById('sidebar-toggle');
+sidebarToggle.addEventListener('click', () => {
+  sidebar.classList.toggle('collapsed');
+  sidebarToggle.innerHTML = sidebar.classList.contains('collapsed') ? '&#9654;' : '&#9664;';
+  setTimeout(() => map.invalidateSize(), 350);
+});
+
+/* ===== JOURNEY TAB ===== */
+const journeyPanel = document.getElementById('tab-journey');
+ROUTES.forEach(r => {
+  const g = GROUPS[r.group];
+  const card = document.createElement('div');
+  card.className = 'journey-card';
+  // Find places in this route
+  const stopPlaces = [];
+  r.pts.forEach(pt => {
+    const p = PLACES.find(pl => Math.abs(pl.lat-pt[0])<0.01 && Math.abs(pl.lon-pt[1])<0.01);
+    if (p && !stopPlaces.find(sp => sp.id === p.id)) stopPlaces.push(p);
+  });
+
+  let stopsHTML = '';
+  stopPlaces.forEach(sp => {
+    const visits = chronoForPlace(sp.id);
+    const dateStr = visits.length ? visits[0].d : '';
+    stopsHTML += `<div class="journey-stop" onclick="flyToPlace('${sp.id}')">
+      <span class="place-icon">${markerSVG(sp.shape, GROUPS[sp.group].colour, 'S')}</span>
+      <div><span class="stop-name">${sp.name.split(',')[0]}</span><br>
+      <span style="color:#888;font-size:10px">${dateStr}</span></div>
+    </div>`;
+  });
+
+  card.innerHTML = `
+    <div class="journey-header" onclick="this.parentElement.classList.toggle('expanded')">
+      <span class="arrow">&#9654;</span>
+      <span class="journey-badge" style="background:${g.colour}">${r.id.toUpperCase()}</span>
+      <span>${r.name}</span>
+    </div>
+    <div class="journey-stops">
+      <div style="font-size:11px;color:#888;margin-bottom:6px">${r.note}</div>
+      ${stopsHTML}
+      <button class="btn-play" onclick="playJourney('${r.id}')">&#9654; Play this journey</button>
+    </div>
+  `;
+  journeyPanel.appendChild(card);
+});
+
+/* Play journey animation */
+let playTimer = null;
+function playJourney(rid) {
+  if (playTimer) { clearInterval(playTimer); playTimer = null; }
+  const r = ROUTES.find(rt => rt.id === rid);
+  if (!r) return;
+  const stopPlaces = [];
+  r.pts.forEach(pt => {
+    const p = PLACES.find(pl => Math.abs(pl.lat-pt[0])<0.01 && Math.abs(pl.lon-pt[1])<0.01);
+    if (p && !stopPlaces.find(sp => sp.id === p.id)) stopPlaces.push(p);
+  });
+  if (!stopPlaces.length) return;
+  let idx = 0;
+  function step() {
+    if (idx >= stopPlaces.length) { clearInterval(playTimer); playTimer = null; return; }
+    flyToPlace(stopPlaces[idx].id);
+    idx++;
+  }
+  step();
+  playTimer = setInterval(step, 3000);
+}
+
+/* ===== TIMELINE TAB ===== */
+const timelinePanel = document.getElementById('tab-timeline');
+// Category key
+let keyHTML = '<div class="chrono-key">';
+Object.entries(CAT_NAMES).forEach(([k,v]) => {
+  keyHTML += `<div class="chrono-key-item"><span class="cat-chip cat-${k}"></span>${v}</div>`;
+});
+keyHTML += '</div>';
+timelinePanel.innerHTML = keyHTML;
+
+CHRONO.forEach((c, i) => {
+  const el = document.createElement('div');
+  el.className = 'chrono-entry' + (c.id ? ' clickable' : '');
+  el.dataset.idx = i;
+  if (c.id) el.onclick = () => flyToPlace(c.id);
+  el.innerHTML = `
+    <span class="chrono-date">${c.d}</span>
+    <span class="chrono-chip"><span class="cat-chip cat-${c.c}"></span></span>
+    <span class="chrono-text">${c.e}</span>
+  `;
+  timelinePanel.appendChild(el);
+});
+
+/* ===== PLACES TAB ===== */
+const placesPanel = document.getElementById('tab-places');
+let placesFilterGroup = null;
+let placesSortBy = 'name';
+
+function renderPlacesTab() {
+  let filtered = [...PLACES];
+  if (placesFilterGroup) filtered = filtered.filter(p => p.group === placesFilterGroup);
+  const filterVal = (document.getElementById('places-filter')?.value || '').toLowerCase();
+  if (filterVal) filtered = filtered.filter(p => p.name.toLowerCase().includes(filterVal));
+
+  if (placesSortBy === 'name') filtered.sort((a,b) => a.name.localeCompare(b.name));
+  else if (placesSortBy === 'group') filtered.sort((a,b) => a.group.localeCompare(b.group) || a.name.localeCompare(b.name));
+
+  const list = document.getElementById('places-list');
+  if (!list) return;
+  list.innerHTML = '';
+  filtered.forEach(p => {
+    const g = GROUPS[p.group];
+    const el = document.createElement('div');
+    el.className = 'place-item';
+    el.dataset.id = p.id;
+    el.onclick = () => flyToPlace(p.id);
+    el.innerHTML = `
+      <span class="place-icon">${markerSVG(p.shape, g.colour, 'S')}</span>
+      <span class="place-name">${p.name}</span>
+      <span class="place-group" style="background:${g.colour}">${p.group}</span>
+    `;
+    list.appendChild(el);
+  });
+}
+
+// Build places tab controls
+let placesHTML = '<div id="places-controls">';
+placesHTML += '<input id="places-filter" type="text" placeholder="Filter places..." oninput="renderPlacesTab()"/>';
+placesHTML += '<select id="places-sort" onchange="placesSortBy=this.value;renderPlacesTab()"><option value="name">Sort: Name</option><option value="group">Sort: Group</option></select>';
+placesHTML += '</div>';
+placesHTML += '<div class="group-toggles">';
+placesHTML += `<span class="group-toggle active" style="background:#1a1a2e;color:#fff" data-grp="" onclick="placesFilterGroup=null;document.querySelectorAll('.group-toggle').forEach(g=>g.classList.remove('active'));this.classList.add('active');renderPlacesTab()">All</span>`;
+Object.entries(GROUPS).forEach(([k,g]) => {
+  placesHTML += `<span class="group-toggle" data-grp="${k}" style="border-color:${g.colour}" onclick="placesFilterGroup='${k}';document.querySelectorAll('.group-toggle').forEach(g=>g.classList.remove('active'));this.classList.add('active');this.style.background='${g.colour}';this.style.color='#fff';renderPlacesTab()">${g.label.split(' ')[0]}</span>`;
+});
+placesHTML += '</div>';
+placesHTML += '<div id="places-list"></div>';
+placesPanel.innerHTML = placesHTML;
+renderPlacesTab();
+
+/* ===== LEGEND ===== */
+document.getElementById('legend').innerHTML = `
+  <h4>Map Legend</h4>
+  <div class="legend-row"><span class="legend-shape">${markerSVG('circle','#666','S')}</span> Home / Childhood</div>
+  <div class="legend-row"><span class="legend-shape">${markerSVG('triangle','#666','S')}</span> Battle / Action</div>
+  <div class="legend-row"><span class="legend-shape">${markerSVG('diamond','#666','S')}</span> Military post</div>
+  <div class="legend-row"><span class="legend-shape">${markerSVG('ring','#666','S')}</span> Career / Technology</div>
+  <div class="legend-row"><span class="legend-shape">${markerSVG('dot','#666','S')}</span> Transit</div>
+  <div class="legend-row"><span class="legend-shape">${markerSVG('pin','#666','S')}</span> Personal / Memorial</div>
+  <div style="margin-top:6px;border-top:1px solid #eee;padding-top:4px">
+    <div class="legend-row" style="font-size:10px;color:#999">Large = years, Medium = months, Small = days</div>
+  </div>
+`;
+
+/* ===== SEARCH ===== */
+let searchResults = [];
+let searchIdx = -1;
+
+function doSearch(q) {
+  searchResults = [];
+  searchIdx = -1;
+  document.querySelectorAll('.search-hit').forEach(el => el.classList.remove('search-hit'));
+  if (!q || q.length < 2) {
+    document.getElementById('search-count').textContent = '';
+    return;
+  }
+  const ql = q.toLowerCase();
+
+  // Search places
+  PLACES.forEach(p => {
+    if (p.name.toLowerCase().includes(ql) || (p.story||'').toLowerCase().includes(ql)) {
+      searchResults.push({ type:'place', id:p.id, label:p.name });
+    }
+  });
+  // Search chrono
+  CHRONO.forEach((c,i) => {
+    if (c.e.toLowerCase().includes(ql)) {
+      searchResults.push({ type:'chrono', idx:i, id:c.id, label:c.d+' '+c.e.substring(0,40) });
+    }
+  });
+  // Search routes
+  ROUTES.forEach(r => {
+    if (r.name.toLowerCase().includes(ql) || (r.note||'').toLowerCase().includes(ql)) {
+      searchResults.push({ type:'route', id:r.id, label:r.name });
+    }
+  });
+
+  document.getElementById('search-count').textContent = searchResults.length ? `${searchResults.length} found` : 'none';
+  if (searchResults.length) navigateSearch(0);
+}
+
+function navigateSearch(idx) {
+  if (!searchResults.length) return;
+  searchIdx = ((idx % searchResults.length) + searchResults.length) % searchResults.length;
+  document.getElementById('search-count').textContent = `${searchIdx+1} of ${searchResults.length}`;
+
+  const hit = searchResults[searchIdx];
+  if (hit.type === 'place') {
+    flyToPlace(hit.id);
+    // Highlight in places list
+    document.querySelectorAll('.place-item').forEach(el => {
+      el.classList.toggle('search-hit', el.dataset.id === hit.id);
+    });
+  } else if (hit.type === 'chrono') {
+    if (hit.id) flyToPlace(hit.id);
+    // Switch to timeline tab and highlight
+    document.querySelectorAll('.sidebar-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.querySelector('[data-tab="timeline"]').classList.add('active');
+    document.getElementById('tab-timeline').classList.add('active');
+    const entries = document.querySelectorAll('.chrono-entry');
+    entries.forEach(el => el.classList.remove('search-hit'));
+    if (entries[hit.idx]) {
+      entries[hit.idx].classList.add('search-hit');
+      entries[hit.idx].scrollIntoView({ block:'center', behavior:'smooth' });
+    }
+  } else if (hit.type === 'route') {
+    highlightRoute(hit.id);
+  }
+}
+
+document.getElementById('search-input').addEventListener('input', e => doSearch(e.target.value));
+document.getElementById('search-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') navigateSearch(searchIdx + (e.shiftKey ? -1 : 1));
+  if (e.key === 'Escape') { e.target.value = ''; doSearch(''); }
+});
+document.getElementById('search-prev').addEventListener('click', () => navigateSearch(searchIdx - 1));
+document.getElementById('search-next').addEventListener('click', () => navigateSearch(searchIdx + 1));
+
+/* ===== RESET ===== */
+document.getElementById('btn-reset').addEventListener('click', () => {
+  map.setView([42, 10], 4);
+  activeRegion = null;
+  document.querySelectorAll('.region-pill').forEach(b => b.classList.remove('active'));
+  // Show all markers and routes
+  showAll();
+  document.getElementById('search-input').value = '';
+  doSearch('');
+  // Reset scrubber
+  resetScrubber();
+});
+
+function showAll() {
+  markerLayer.eachLayer(m => { if (!map.hasLayer(m)) map.addLayer(m); });
+  if (!map.hasLayer(clusterGroup)) map.addLayer(clusterGroup);
+  Object.values(routeLayers).forEach(l => { if (!map.hasLayer(l)) l.addTo(map); });
+  Object.values(routeDecorators).forEach(d => { if (!map.hasLayer(d)) d.addTo(map); });
+}
+
+/* ===== TIMELINE SCRUBBER ===== */
+const scrubberTrack = document.getElementById('scrubber-track');
+const scrubberHandle = document.createElement('div');
+scrubberHandle.id = 'scrubber-handle';
+scrubberTrack.appendChild(scrubberHandle);
+const scrubberLabel = document.getElementById('scrubber-label');
+
+// Create segments
+const groupOrder = ['early','antwerp','gallipoli','western','interwar','ww2','backfire','woomera','adelaide'];
+const groupYears = {
+  early: [1897, 1914],
+  antwerp: [1914, 1915],
+  gallipoli: [1915, 1916],
+  western: [1916, 1919],
+  interwar: [1919, 1939],
+  ww2: [1939, 1945],
+  backfire: [1945, 1946],
+  woomera: [1946, 1965],
+  adelaide: [1965, 1986]
+};
+
+const totalYears = YEAR_END - YEAR_START;
+groupOrder.forEach(gk => {
+  const [y0, y1] = groupYears[gk];
+  const seg = document.createElement('div');
+  seg.className = 'scrubber-seg';
+  seg.style.left = ((y0 - YEAR_START) / totalYears * 100) + '%';
+  seg.style.width = ((y1 - y0) / totalYears * 100) + '%';
+  seg.style.background = GROUPS[gk].colour;
+  seg.title = GROUPS[gk].label;
+  seg.onclick = (e) => {
+    e.stopPropagation();
+    const b = REGION_BOUNDS[gk];
+    if (b) map.fitBounds(b, { padding: [30,30], maxZoom: 14 });
+    // Activate region pill
+    document.querySelectorAll('.region-pill').forEach(b => b.classList.remove('active'));
+    activeRegion = gk;
+    const pills = document.querySelectorAll('.region-pill');
+    const idx = groupOrder.indexOf(gk);
+    if (pills[idx]) pills[idx].classList.add('active');
+  };
+  scrubberTrack.appendChild(seg);
+});
+
+let scrubberActive = false;
+let currentScrubYear = null;
+
+function yearFromX(clientX) {
+  const rect = scrubberTrack.getBoundingClientRect();
+  const pct = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+  return Math.round(YEAR_START + pct * totalYears);
+}
+
+function setScrubberYear(year) {
+  currentScrubYear = year;
+  const pct = (year - YEAR_START) / totalYears;
+  scrubberHandle.style.left = (pct * 100) + '%';
+  document.getElementById('scrubber-year').textContent = year;
+  filterByYear(year);
+}
+
+function filterByYear(year) {
+  // Determine which group(s) are active at this year
+  const activeGroups = new Set();
+  groupOrder.forEach(gk => {
+    const [y0, y1] = groupYears[gk];
+    if (year >= y0 && year <= y1) activeGroups.add(gk);
+  });
+
+  // Show/hide markers
+  markerLayer.eachLayer(m => {
+    if (activeGroups.has(m._placeGroup)) {
+      if (!map.hasLayer(m)) markerLayer.addLayer(m);
+    }
+  });
+
+  // For non-cluster markers, show/hide
+  PLACES.forEach(p => {
+    const m = markers[p.id];
+    if (!m) return;
+    if (clusterGroups.includes(p.group)) return; // handled by cluster
+    if (activeGroups.has(p.group)) {
+      if (!markerLayer.hasLayer(m)) markerLayer.addLayer(m);
+    } else {
+      if (markerLayer.hasLayer(m)) markerLayer.removeLayer(m);
+    }
+  });
+
+  // Cluster group
+  if (activeGroups.has('gallipoli')) {
+    if (!map.hasLayer(clusterGroup)) map.addLayer(clusterGroup);
+  } else {
+    if (map.hasLayer(clusterGroup)) map.removeLayer(clusterGroup);
+  }
+
+  // Routes
+  ROUTES.forEach(r => {
+    const show = activeGroups.has(r.group);
+    if (show) {
+      if (!map.hasLayer(routeLayers[r.id])) routeLayers[r.id].addTo(map);
+      if (!map.hasLayer(routeDecorators[r.id])) routeDecorators[r.id].addTo(map);
+    } else {
+      if (map.hasLayer(routeLayers[r.id])) map.removeLayer(routeLayers[r.id]);
+      if (map.hasLayer(routeDecorators[r.id])) map.removeLayer(routeDecorators[r.id]);
+    }
+  });
+}
+
+function resetScrubber() {
+  currentScrubYear = null;
+  scrubberHandle.style.left = '0%';
+  document.getElementById('scrubber-year').textContent = '1986';
+  showAll();
+}
+
+scrubberTrack.addEventListener('mousedown', e => {
+  if (e.target === scrubberHandle || e.target === scrubberTrack) {
+    scrubberActive = true;
+    setScrubberYear(yearFromX(e.clientX));
+  }
+});
+document.addEventListener('mousemove', e => {
+  if (scrubberActive) setScrubberYear(yearFromX(e.clientX));
+});
+document.addEventListener('mouseup', () => { scrubberActive = false; });
+
+// Touch support for scrubber
+scrubberTrack.addEventListener('touchstart', e => {
+  scrubberActive = true;
+  setScrubberYear(yearFromX(e.touches[0].clientX));
+}, { passive: true });
+document.addEventListener('touchmove', e => {
+  if (scrubberActive) setScrubberYear(yearFromX(e.touches[0].clientX));
+}, { passive: true });
+document.addEventListener('touchend', () => { scrubberActive = false; });
+
+/* ===== KEYBOARD ===== */
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    map.closePopup();
+    sidebar.classList.add('collapsed');
+    sidebarToggle.innerHTML = '&#9654;';
+    setTimeout(() => map.invalidateSize(), 350);
+  }
+});
+
+/* ===== INITIAL VIEW ===== */
+// Fit to show all places
+const allLatLngs = PLACES.map(p => [p.lat, p.lon]);
+map.fitBounds(allLatLngs, { padding: [30, 30] });
+</script>
+</body>
+</html>

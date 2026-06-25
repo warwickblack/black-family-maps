@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Groote Catrijn: Places and Voyages</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.css"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.Default.css"/>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--header-h:60px;--region-h:40px;--scrub-h:36px;--sidebar-w:320px;--font:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
+body{font-family:var(--font);overflow:hidden;height:100vh;background:#f5f0eb}
+#header{height:var(--header-h);background:#1a1a2e;color:#fff;display:flex;align-items:center;padding:0 16px;gap:16px;z-index:1000;position:relative}
+#header h1{font-size:17px;font-weight:600;white-space:nowrap}
+#header .sub{font-size:11px;color:#b0a89f;margin-left:-8px;white-space:nowrap}
+#search-wrap{margin-left:auto;display:flex;align-items:center;gap:6px;background:rgba(255,255,255,0.12);border-radius:6px;padding:2px 8px}
+#search-wrap input{background:none;border:none;color:#fff;font-size:14px;width:180px;outline:none;font-family:var(--font)}
+#search-wrap input::placeholder{color:#aaa}
+#search-info{color:#b0a89f;font-size:11px;white-space:nowrap}
+.search-nav{background:none;border:none;color:#fff;cursor:pointer;font-size:14px;padding:2px 4px}
+.search-nav:hover{color:#f0c040}
+#region-bar{height:var(--region-h);background:#24243e;display:flex;align-items:center;gap:6px;padding:0 12px;overflow-x:auto;-webkit-overflow-scrolling:touch;z-index:999;position:relative}
+#region-bar::-webkit-scrollbar{height:0}
+.rpill{font-size:11px;padding:4px 10px;border-radius:12px;cursor:pointer;white-space:nowrap;border:2px solid transparent;color:#fff;opacity:.85;transition:all .2s}
+.rpill:hover,.rpill.active{opacity:1;border-color:#fff;transform:scale(1.05)}
+#main{display:flex;height:calc(100vh - var(--header-h) - var(--region-h) - var(--scrub-h));position:relative}
+#sidebar{width:var(--sidebar-w);background:#fff;box-shadow:2px 0 12px rgba(0,0,0,.12);z-index:800;display:flex;flex-direction:column;overflow:hidden;transition:margin-left .3s}
+#sidebar.hidden{margin-left:calc(-1 * var(--sidebar-w))}
+#sidebar-toggle{position:absolute;left:0;top:50%;transform:translateY(-50%);z-index:801;background:#1a1a2e;color:#fff;border:none;border-radius:0 6px 6px 0;padding:8px 4px;cursor:pointer;font-size:14px;transition:left .3s}
+#sidebar.hidden~#sidebar-toggle{left:0}
+#sidebar:not(.hidden)~#sidebar-toggle{left:var(--sidebar-w)}
+.tabs{display:flex;border-bottom:2px solid #eee}
+.tab{flex:1;padding:8px;text-align:center;font-size:12px;font-weight:600;cursor:pointer;border-bottom:3px solid transparent;color:#666;transition:all .2s}
+.tab.active{color:#1a1a2e;border-bottom-color:#c2641f}
+.tab-body{flex:1;overflow-y:auto;padding:8px}
+.tab-content{display:none}
+.tab-content.active{display:block}
+.card{border:1px solid #e8e0d8;border-radius:8px;margin-bottom:8px;overflow:hidden;transition:box-shadow .2s}
+.card:hover{box-shadow:0 2px 8px rgba(0,0,0,.1)}
+.card-head{padding:8px 10px;cursor:pointer;display:flex;align-items:center;gap:8px;font-size:12px}
+.card-head .arr{transition:transform .2s;font-size:10px;color:#999}
+.card.open .arr{transform:rotate(90deg)}
+.card-body{display:none;padding:8px 10px;font-size:12px;line-height:1.6;border-top:1px solid #f0e8e0;color:#444}
+.card.open .card-body{display:block}
+.swatch{width:14px;height:4px;border-radius:2px;display:inline-block}
+.clink{color:#1a6db3;cursor:pointer;text-decoration:underline}
+.clink:hover{color:#c2641f}
+.play-btn{display:inline-block;margin-top:6px;padding:4px 12px;background:#1a1a2e;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-family:var(--font)}
+.play-btn:hover{background:#2a2a4e}
+.place-card{display:flex;align-items:center;gap:8px;padding:6px 8px;border-bottom:1px solid #f0e8e0;cursor:pointer;font-size:12px;transition:background .15s}
+.place-card:hover{background:#faf6f2}
+.place-card .badge{font-size:9px;padding:1px 5px;border-radius:3px;color:#fff}
+.place-card .rg{font-size:9px;color:#888}
+.filter-bar{display:flex;gap:4px;padding:6px 8px;flex-wrap:wrap;border-bottom:1px solid #eee}
+.fbtn{font-size:10px;padding:3px 8px;border-radius:10px;border:1px solid #ddd;background:#fff;cursor:pointer;font-family:var(--font)}
+.fbtn.on{background:#1a1a2e;color:#fff;border-color:#1a1a2e}
+.sort-bar{display:flex;gap:4px;padding:4px 8px;border-bottom:1px solid #eee}
+.sbtn{font-size:10px;padding:2px 6px;border:none;background:none;cursor:pointer;color:#888;font-family:var(--font)}
+.sbtn.on{color:#1a1a2e;font-weight:700}
+#map{flex:1;z-index:1}
+#scrubber{height:var(--scrub-h);background:#1a1a2e;display:flex;align-items:center;z-index:999;position:relative}
+.era{flex:1;height:100%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:10px;color:#fff;opacity:.7;transition:all .2s;border-right:1px solid rgba(255,255,255,.15)}
+.era:last-child{border-right:none}
+.era:hover,.era.active{opacity:1;font-weight:700}
+.legend-box{position:absolute;bottom:calc(var(--scrub-h) + 8px);left:8px;z-index:900;background:rgba(255,255,255,.95);border-radius:6px;padding:8px 10px;font-size:10px;box-shadow:0 1px 6px rgba(0,0,0,.15);line-height:1.8;max-width:180px}
+.legend-box h4{font-size:11px;margin-bottom:4px;color:#1a1a2e}
+.legend-row{display:flex;align-items:center;gap:6px}
+.legend-svg{width:16px;height:16px;flex-shrink:0}
+.sz-row{display:flex;align-items:center;gap:8px;margin-top:4px;padding-top:4px;border-top:1px solid #eee}
+.sz-dot{border-radius:50%;background:#666}
+.highlight{background:rgba(255,200,0,.25);border-radius:2px}
+.leaflet-popup-content{font-family:var(--font);font-size:13px;line-height:1.5;max-width:280px}
+.popup-badge{display:inline-block;font-size:10px;padding:2px 8px;border-radius:3px;color:#fff;margin:4px 0}
+.popup-routes{margin-top:6px;font-size:11px;color:#666}
+.popup-route-badge{display:inline-block;font-size:9px;padding:1px 6px;border-radius:3px;color:#fff;margin:2px 2px}
+.minimap{position:absolute;bottom:calc(var(--scrub-h) + 8px);right:8px;z-index:900;width:140px;height:100px;border-radius:6px;overflow:hidden;box-shadow:0 1px 6px rgba(0,0,0,.2);border:2px solid #fff}
+#minimap{width:100%;height:100%}
+@media(max-width:768px){
+ #sidebar{position:absolute;left:0;top:0;height:100%;width:280px}
+ #sidebar.hidden{margin-left:-280px}
+ #sidebar:not(.hidden)~#sidebar-toggle{left:280px}
+ #header h1{font-size:14px}
+ #header .sub{display:none}
+ #search-wrap input{width:120px;font-size:16px}
+ .rpill{min-height:44px;display:flex;align-items:center}
+ #main{height:calc(100vh - var(--header-h) - var(--region-h) - var(--scrub-h))}
+ #map{min-height:300px}
+ .play-btn,.fbtn,.sbtn,.tab,.card-head,.place-card,.clink,.search-nav,.era{min-height:44px;display:flex;align-items:center;justify-content:center}
+}
+</style>
+</head>
+<body>
+<div id="header">
+ <h1>Groote Catrijn: Places and Voyages</h1>
+ <span class="sub">Every place named in the memoir (v7)</span>
+ <div id="search-wrap">
+  <input id="q" type="text" placeholder="Search places, routes, stories..." autocomplete="off">
+  <span id="search-info"></span>
+  <button class="search-nav" id="prevMatch" title="Previous">&#9650;</button>
+  <button class="search-nav" id="nextMatch" title="Next">&#9660;</button>
+ </div>
+</div>
+<div id="region-bar"></div>
+<div id="main">
+ <div id="sidebar">
+  <div class="tabs">
+   <div class="tab active" data-tab="voyages">Voyages</div>
+   <div class="tab" data-tab="story">Story</div>
+   <div class="tab" data-tab="places">Places</div>
+  </div>
+  <div class="tab-body">
+   <div id="voyages-tab" class="tab-content active"></div>
+   <div id="story-tab" class="tab-content"></div>
+   <div id="places-tab" class="tab-content">
+    <div class="filter-bar" id="status-filters"></div>
+    <div class="sort-bar">
+     <button class="sbtn on" onclick="sortPlaces('name')">A-Z</button>
+     <button class="sbtn" onclick="sortPlaces('region')">Region</button>
+    </div>
+    <div id="places-list"></div>
+   </div>
+  </div>
+ </div>
+ <button id="sidebar-toggle" onclick="document.getElementById('sidebar').classList.toggle('hidden')">&#9776;</button>
+ <div id="map"></div>
+</div>
+<div id="scrubber"></div>
+<div class="legend-box" id="legend"></div>
+<div class="minimap"><div id="minimap"></div></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/leaflet-polylinedecorator@1.6.0/dist/leaflet.polylineDecorator.min.js"></script>
+<script>
+const DATA=[{"n":"Pulicat (Pazhaverkadu)","r":"India and the East","s":"Same","m":"Pulicat / Pazhaverkadu, Tamil Nadu, India","lat":13.416,"lon":80.317,"c":"Catrijn's birthplace on the lagoon, c. 1631.","shape":"circle","sz":"L"},{"n":"Fort Geldria","r":"India and the East","s":"Vanished, site known","m":"Ruined fort at Pulicat, Archaeological Survey of India site","lat":13.4135,"lon":80.316,"c":"VOC headquarters on the Coromandel Coast, built 1613.","shape":"diamond","sz":"M"},{"n":"Coromandel Coast","r":"India and the East","s":"Same","m":"South-eastern coast of India, Tamil Nadu and Andhra Pradesh","lat":13.0,"lon":80.2,"c":"The textile coast the Dutch came for.","shape":"dot","sz":"M"},{"n":"Bay of Bengal","r":"India and the East","s":"Same","m":"Bay of Bengal","lat":15.0,"lon":87.0,"c":"The sea beyond the Pulicat sand spit.","shape":"dot","sz":"S"},{"n":"Arani River","r":"India and the East","s":"Same","m":"Arani (Araniyar) River","lat":13.42,"lon":80.2,"c":"Feeds Pulicat Lake.","shape":"dot","sz":"S"},{"n":"Kalangi River","r":"India and the East","s":"Same","m":"Kalangi River, Andhra Pradesh","lat":13.6,"lon":79.95,"c":"Feeds Pulicat Lake.","shape":"dot","sz":"S"},{"n":"Bijapur","r":"India and the East","s":"Name changed","m":"Vijayapura, Karnataka (renamed 2014)","lat":16.83,"lon":75.71,"c":"The 1645 invasion that fed the slave markets.","shape":"triangle","sz":"M"},{"n":"Bengal","r":"India and the East","s":"Name changed","m":"West Bengal (India) and Bangladesh","lat":23.7,"lon":89.0,"c":"Origin of Anthonij, Angela and others.","shape":"ring","sz":"S"},{"n":"Malabar","r":"India and the East","s":"Same","m":"Malabar Coast, Kerala","lat":11.25,"lon":75.78,"c":"Origin of Claes and of the slave Maria.","shape":"ring","sz":"S"},{"n":"Arakan","r":"India and the East","s":"Name changed","m":"Rakhine State, Myanmar","lat":20.1,"lon":93.5,"c":"Slave-raiding coast of the 1640s.","shape":"triangle","sz":"S"},{"n":"Fujian","r":"India and the East","s":"Same","m":"Fujian Province, China","lat":26.1,"lon":117.9,"c":"Homeland of Batavia's Chinese market gardeners.","shape":"ring","sz":"S"},{"n":"Batavia","r":"Batavia (Java)","s":"Name changed","m":"Jakarta, Indonesia (old town: Kota Tua)","lat":-6.135,"lon":106.813,"c":"The VOC capital where Catrijn was tried in 1656.","shape":"circle","sz":"L"},{"n":"Rijswijck fortress and gardens","r":"Batavia (Java)","s":"Vanished, site known","m":"Under Merdeka Square and the Gambir district, Central Jakarta","lat":-6.175,"lon":106.827,"c":"The garden where Claes died, 8 October 1656.","shape":"triangle","sz":"L"},{"n":"Tijgersgracht","r":"Batavia (Java)","s":"Vanished, site known","m":"Canal filled in, line within Kota Tua, Jakarta","lat":-6.132,"lon":106.813,"c":"The grand canal of Dutch Batavia.","shape":"dot","sz":"M"},{"n":"Castle of Batavia","r":"Batavia (Java)","s":"Vanished, site known","m":"Site near Pasar Ikan, Jakarta old harbour","lat":-6.127,"lon":106.809,"c":"Where the Council of Justice condemned and the Governor-General pardoned her.","shape":"diamond","sz":"L"},{"n":"Java","r":"Batavia (Java)","s":"Same","m":"Java, Indonesia","lat":-7.5,"lon":110.0,"c":"The island behind the city.","shape":"dot","sz":"S"},{"n":"Bali","r":"Batavia (Java)","s":"Same","m":"Bali, Indonesia","lat":-8.4,"lon":115.2,"c":"Origin of the slave Baddou.","shape":"ring","sz":"S"},{"n":"Sumatra","r":"Batavia (Java)","s":"Same","m":"Sumatra, Indonesia","lat":-0.5,"lon":101.5,"c":"Origin of the convict tSincko (Jambi).","shape":"ring","sz":"S"},{"n":"Ceylon","r":"Batavia (Java)","s":"Name changed","m":"Sri Lanka","lat":7.0,"lon":81.0,"c":"The Oosterland's last lading, 1697.","shape":"dot","sz":"M"},{"n":"Indian Ocean","r":"Voyages and oceans","s":"Same","m":"Indian Ocean","lat":-25.0,"lon":80.0,"c":"Eleven weeks of it, Batavia to the Cape.","shape":"dot","sz":"M"},{"n":"Isle of Brandon","r":"Voyages and oceans","s":"Name changed","m":"St Brandon (Cargados Carajos Shoals), Mauritius","lat":-16.58,"lon":59.65,"c":"Where the Prins Willem vanished, February 1662.","shape":"triangle","sz":"M"},{"n":"Madagascar","r":"Voyages and oceans","s":"Same","m":"Madagascar","lat":-19.0,"lon":47.0,"c":"The fleet route ran south of it.","shape":"dot","sz":"S"},{"n":"Atlantic Ocean","r":"Voyages and oceans","s":"Same","m":"Atlantic Ocean","lat":-15.0,"lon":-15.0,"c":"The Oosterland's long southern arc.","shape":"dot","sz":"S"},{"n":"North Sea","r":"Voyages and oceans","s":"Same","m":"North Sea","lat":54.0,"lon":3.0,"c":"January gales at the start of the 1688 voyage.","shape":"dot","sz":"S"},{"n":"English Channel","r":"Voyages and oceans","s":"Same","m":"English Channel","lat":50.0,"lon":-1.5,"c":"Second leg of the route south.","shape":"dot","sz":"S"},{"n":"Bay of Biscay","r":"Voyages and oceans","s":"Same","m":"Bay of Biscay","lat":45.5,"lon":-6.0,"c":"Where the refugees learned seasickness.","shape":"dot","sz":"S"},{"n":"Canary Islands","r":"Voyages and oceans","s":"Same","m":"Canary Islands, Spain","lat":28.5,"lon":-15.5,"c":"Where the trade winds picked up.","shape":"dot","sz":"S"},{"n":"Brazil (coast)","r":"Voyages and oceans","s":"Same","m":"Brazil","lat":-5.0,"lon":-34.0,"c":"The fleet swung almost to its coast for the trades.","shape":"dot","sz":"S"},{"n":"Wielingen","r":"Voyages and oceans","s":"Same","m":"Wielingen channel, mouth of the Western Scheldt","lat":51.4,"lon":3.45,"c":"The Oosterland's departure point, 29 January 1688.","shape":"dot","sz":"M"},{"n":"Goeree","r":"Voyages and oceans","s":"Same","m":"Goeree-Overflakkee, Netherlands","lat":51.75,"lon":3.95,"c":"Departure point in the Olive Tree account.","shape":"dot","sz":"S"},{"n":"Middelburg","r":"Europe","s":"Same","m":"Middelburg, Zeeland, Netherlands","lat":51.5,"lon":3.61,"c":"Where both ships were built and the oath was signed.","shape":"diamond","sz":"M"},{"n":"Zeeland","r":"Europe","s":"Same","m":"Zeeland province, Netherlands","lat":51.5,"lon":3.8,"c":"Chamber that owned both ships.","shape":"dot","sz":"M"},{"n":"Amsterdam","r":"Europe","s":"Same","m":"Amsterdam, Netherlands","lat":52.37,"lon":4.9,"c":"The Walloon church and the recruiting taverns.","shape":"ring","sz":"M"},{"n":"Rotterdam","r":"Europe","s":"Same","m":"Rotterdam, Netherlands","lat":51.92,"lon":4.48,"c":"Port of the soul sellers.","shape":"ring","sz":"S"},{"n":"Ath","r":"Europe","s":"Same","m":"Ath, Hainaut, Belgium","lat":50.63,"lon":3.78,"c":"Jacques de Savoye's birthplace, 1636.","shape":"ring","sz":"L"},{"n":"Ghent","r":"Europe","s":"Same","m":"Ghent (Gent), Belgium","lat":51.05,"lon":3.72,"c":"De Savoye's linen business, Marguerite's baptism 1672.","shape":"ring","sz":"M"},{"n":"Tournai (Doornik)","r":"Europe","s":"Same","m":"Tournai, Belgium","lat":50.61,"lon":3.39,"c":"Home of Marie-Madeleine le Clercq and Antoinette Carnoy.","shape":"ring","sz":"M"},{"n":"Sas van Gent","r":"Europe","s":"Same","m":"Sas van Gent, Netherlands","lat":51.23,"lon":3.8,"c":"First refuge after the flight from Ghent, 1686.","shape":"dot","sz":"M"},{"n":"Spanish Netherlands","r":"Europe","s":"Vanished, site known","m":"Historic polity, now Belgium","lat":50.85,"lon":4.35,"c":"Where Marguerite was born in exile.","shape":"dot","sz":"S"},{"n":"Heidelberg","r":"Europe","s":"Same","m":"Heidelberg, Germany","lat":49.41,"lon":8.69,"c":"Home of the other soldier, Snijder.","shape":"ring","sz":"M"},{"n":"Palatinate","r":"Europe","s":"Name changed","m":"Historic Electoral Palatinate, now in Rhineland-Palatinate and Baden-Wuerttemberg","lat":49.4,"lon":8.5,"c":"The ruined homeland of the other soldier.","shape":"dot","sz":"S"},{"n":"Bad Harzburg (Harzburg)","r":"Europe","s":"Name changed","m":"Bad Harzburg, Lower Saxony (Bad added 1892)","lat":51.88,"lon":10.56,"c":"Hans Christoffel Snijman's home town, c. 1643.","shape":"ring","sz":"L"},{"n":"Harz Mountains","r":"Europe","s":"Same","m":"Harz, Germany","lat":51.75,"lon":10.6,"c":"The mining country the war broke.","shape":"dot","sz":"M"},{"n":"Goslar","r":"Europe","s":"Same","m":"Goslar, Germany (UNESCO)","lat":51.91,"lon":10.43,"c":"Imperial city a day's walk from Harzburg.","shape":"dot","sz":"S"},{"n":"Rammelsberg","r":"Europe","s":"Same","m":"Rammelsberg mine, Goslar (museum since 1988, UNESCO)","lat":51.89,"lon":10.42,"c":"Mined without pause for a thousand years.","shape":"dot","sz":"S"},{"n":"Brocken","r":"Europe","s":"Same","m":"Brocken, Harz National Park","lat":51.8,"lon":10.62,"c":"The witches' mountain above the town.","shape":"dot","sz":"S"},{"n":"Saxony","r":"Europe","s":"Same","m":"Saxony (historic region), Germany","lat":51.0,"lon":13.3,"c":"Origin of Andries Beijer.","shape":"ring","sz":"S"},{"n":"Wesel","r":"Europe","s":"Same","m":"Wesel, North Rhine-Westphalia, Germany","lat":51.66,"lon":6.62,"c":"Origin of Arnoldus Basson, Angela's husband.","shape":"ring","sz":"S"},{"n":"Frankfurt am Main","r":"Europe","s":"Same","m":"Frankfurt am Main, Germany","lat":50.11,"lon":8.68,"c":"Origin of Abraham Hartogh, the ex-executioner.","shape":"ring","sz":"S"},{"n":"Gothenburg","r":"Europe","s":"Same","m":"Gothenburg (Goeteborg), Sweden","lat":57.71,"lon":11.97,"c":"Origin of Oloff Bergh.","shape":"ring","sz":"S"},{"n":"Kampen","r":"Europe","s":"Same","m":"Kampen, Overijssel, Netherlands","lat":52.56,"lon":5.91,"c":"Home town of the murdered Jacobus Jansz.","shape":"ring","sz":"S"},{"n":"Paris","r":"Europe","s":"Same","m":"Paris, France","lat":48.86,"lon":2.35,"c":"Origin of the passenger Jan Parisel.","shape":"ring","sz":"S"},{"n":"Poitiers","r":"Europe","s":"Same","m":"Poitiers, France","lat":46.58,"lon":0.34,"c":"Home of the ship's doctor Jean Prieur du Plessis.","shape":"ring","sz":"S"},{"n":"Chateaudun","r":"Europe","s":"Same","m":"Chateaudun, Eure-et-Loir, France","lat":48.07,"lon":1.34,"c":"Home of Sara Avice, who died on the voyage.","shape":"ring","sz":"S"},{"n":"Cape of Good Hope","r":"Cape Town and Table Bay","s":"Same","m":"Cape of Good Hope, South Africa","lat":-34.357,"lon":18.474,"c":"The settlement and the promontory that named it.","shape":"circle","sz":"L"},{"n":"Table Bay","r":"Cape Town and Table Bay","s":"Same","m":"Table Bay, Cape Town","lat":-33.88,"lon":18.44,"c":"Anchorage of every arrival and the Oosterland's grave.","shape":"dot","sz":"L"},{"n":"Table Mountain","r":"Cape Town and Table Bay","s":"Same","m":"Table Mountain, Cape Town","lat":-33.962,"lon":18.403,"c":"The wall above the settlement.","shape":"dot","sz":"M"},{"n":"Devil's Peak","r":"Cape Town and Table Bay","s":"Same","m":"Devil's Peak, Cape Town","lat":-33.95,"lon":18.44,"c":"East flank of the amphitheatre.","shape":"dot","sz":"S"},{"n":"Lion's Head","r":"Cape Town and Table Bay","s":"Same","m":"Lion's Head, Cape Town","lat":-33.936,"lon":18.389,"c":"West flank.","shape":"dot","sz":"S"},{"n":"Lion's Rump","r":"Cape Town and Table Bay","s":"Name changed","m":"Signal Hill, Cape Town","lat":-33.922,"lon":18.401,"c":"Where the soldier's remains were found in 1659.","shape":"dot","sz":"S"},{"n":"Fort de Goede Hoop","r":"Cape Town and Table Bay","s":"Vanished, site known","m":"Site on and near the Grand Parade, Cape Town","lat":-33.921,"lon":18.422,"c":"The mud fort. Catrijn's room was under its stairs.","shape":"diamond","sz":"L"},{"n":"Castle of Good Hope","r":"Cape Town and Table Bay","s":"Same","m":"Castle of Good Hope, Cape Town (built 1666-1679)","lat":-33.9258,"lon":18.427,"c":"The stone replacement, still standing.","shape":"diamond","sz":"M"},{"n":"Table Valley","r":"Cape Town and Table Bay","s":"Name changed","m":"The City Bowl, central Cape Town","lat":-33.925,"lon":18.42,"c":"Anthonij and Catrijn's farm and town lots.","shape":"circle","sz":"M"},{"n":"Zeestraat","r":"Cape Town and Table Bay","s":"Name changed","m":"Strand Street, Cape Town","lat":-33.92,"lon":18.423,"c":"The house bought for 1,200 guilders in 1671.","shape":"pin","sz":"M"},{"n":"Bergdwarsstraat","r":"Cape Town and Table Bay","s":"Name changed","m":"St George's Mall, Cape Town","lat":-33.923,"lon":18.421,"c":"The Company's later grant to the couple.","shape":"pin","sz":"S"},{"n":"Fresh River (Camissa)","r":"Cape Town and Table Bay","s":"Vanished, site known","m":"Canalised under Adderley Street, Cape Town","lat":-33.924,"lon":18.424,"c":"The washing stream from the mountain.","shape":"dot","sz":"S"},{"n":"Salt River","r":"Cape Town and Table Bay","s":"Same","m":"Salt River, Cape Town (river mouth and suburb)","lat":-33.92,"lon":18.465,"c":"Hippos in the 1650s, the Oosterland wreck off its mouth in 1697.","shape":"dot","sz":"M"},{"n":"Cape Flats","r":"Cape Town and Table Bay","s":"Same","m":"Cape Flats","lat":-34.0,"lon":18.6,"c":"Where the south-easter carried the washing.","shape":"dot","sz":"S"},{"n":"Robben Island","r":"Cape Town and Table Bay","s":"Same","m":"Robben Island (UNESCO)","lat":-33.806,"lon":18.366,"c":"Hans Christoffel's banishment, 1667.","shape":"triangle","sz":"M"},{"n":"Milnerton Lagoon","r":"Cape Town and Table Bay","s":"Same","m":"Milnerton Lagoon (Diep River mouth), Cape Town","lat":-33.886,"lon":18.484,"c":"The wreck found six metres down, 1988.","shape":"dot","sz":"S"},{"n":"Constantia","r":"Cape Town and Table Bay","s":"Same","m":"Constantia, Cape Town","lat":-34.03,"lon":18.42,"c":"Marguerite-Therese's burial at Paradijs, 1742.","shape":"pin","sz":"M"},{"n":"Paradijs","r":"Cape Town and Table Bay","s":"Uncertain","m":"Historic place in the Constantia and Newlands forest area","lat":-34.01,"lon":18.43,"c":"Her burial place. Exact site approximate.","shape":"pin","sz":"S"},{"n":"Kronendal, Hout Bay","r":"Cape Town and Table Bay","s":"Same","m":"Kronendal, Hout Bay (historic manor survives)","lat":-34.04,"lon":18.355,"c":"Birthplace of Dr Cornelis Brink, 1842.","shape":"pin","sz":"S"},{"n":"Stellenbosch","r":"Drakenstein and the Boland","s":"Same","m":"Stellenbosch","lat":-33.932,"lon":18.86,"c":"Christoffel's church membership, 1692.","shape":"pin","sz":"M"},{"n":"Drakenstein","r":"Drakenstein and the Boland","s":"Same","m":"Drakenstein valley and municipality, Paarl area","lat":-33.75,"lon":18.97,"c":"The Huguenot valley.","shape":"circle","sz":"M"},{"n":"Paarl","r":"Drakenstein and the Boland","s":"Same","m":"Paarl","lat":-33.73,"lon":18.96,"c":"First settlement in the valley, 1687.","shape":"dot","sz":"M"},{"n":"Berg River","r":"Drakenstein and the Boland","s":"Same","m":"Berg River","lat":-33.75,"lon":18.98,"c":"The valley's artery.","shape":"dot","sz":"S"},{"n":"Simonsberg (Napoleonsberg)","r":"Drakenstein and the Boland","s":"Same","m":"Simonsberg","lat":-33.87,"lon":18.92,"c":"The mountain above Vrede en Lust.","shape":"dot","sz":"S"},{"n":"Vrede en Lust","r":"Drakenstein and the Boland","s":"Same","m":"Vrede en Lust wine estate, Simondium","lat":-33.84,"lon":18.96,"c":"De Savoye's farm, granted 1688, deed 1694.","shape":"pin","sz":"L"},{"n":"Zandvliet (Solms-Delta)","r":"Drakenstein and the Boland","s":"Name changed","m":"Solms-Delta wine estate, Groot Drakenstein","lat":-33.86,"lon":18.98,"c":"Christoffel and Marguerite's farm.","shape":"pin","sz":"M"},{"n":"Nuwedorp","r":"Drakenstein and the Boland","s":"Uncertain","m":"Historic farm name, Groot Drakenstein area","lat":-33.85,"lon":18.97,"c":"The Basson guardians' farm. Site approximate.","shape":"dot","sz":"S"},{"n":"Franschhoek","r":"Drakenstein and the Boland","s":"Same","m":"Franschhoek","lat":-33.91,"lon":19.12,"c":"Heart of the Huguenot settlement.","shape":"pin","sz":"M"},{"n":"Tulbagh","r":"Drakenstein and the Boland","s":"Same","m":"Tulbagh","lat":-33.28,"lon":19.14,"c":"Church registers carrying the Snijman name.","shape":"dot","sz":"S"},{"n":"Swellendam","r":"Drakenstein and the Boland","s":"Same","m":"Swellendam","lat":-34.02,"lon":20.44,"c":"Church registers carrying the name.","shape":"dot","sz":"S"},{"n":"Graaff-Reinet","r":"Drakenstein and the Boland","s":"Same","m":"Graaff-Reinet, Eastern Cape","lat":-32.25,"lon":24.54,"c":"Church registers carrying the name.","shape":"dot","sz":"S"},{"n":"Genadendal","r":"Drakenstein and the Boland","s":"Same","m":"Genadendal, Overberg (mission founded 1738)","lat":-34.033,"lon":19.555,"c":"The 2005 Provincial Honours ceremony.","shape":"pin","sz":"S"},{"n":"Overberg","r":"Drakenstein and the Boland","s":"Same","m":"Overberg region","lat":-34.2,"lon":19.7,"c":"The country beyond the mountains.","shape":"dot","sz":"S"},{"n":"Gordonia","r":"Wider South Africa and Namibia","s":"Name changed","m":"Historic district, now in ZF Mgcawu (Upington area), Northern Cape","lat":-28.4,"lon":21.25,"c":"District of Dorothy Long's birth.","shape":"dot","sz":"S"},{"n":"Keidebees","r":"Wider South Africa and Namibia","s":"Same","m":"Keidebees, Upington","lat":-28.44,"lon":21.26,"c":"Dorothy Louisa Long born here, 1920.","shape":"pin","sz":"S"},{"n":"Postmasburg","r":"Wider South Africa and Namibia","s":"Same","m":"Postmasburg, Northern Cape","lat":-28.33,"lon":23.07,"c":"Dr Brink died at Wildealsput nearby, 1912.","shape":"dot","sz":"S"},{"n":"Wildealsput","r":"Wider South Africa and Namibia","s":"Uncertain","m":"Farm near Postmasburg, Northern Cape","lat":-28.3,"lon":23.0,"c":"Site approximate.","shape":"dot","sz":"S"},{"n":"Gurus","r":"Wider South Africa and Namibia","s":"Uncertain","m":"Farm in former South West Africa (Namibia), not positively located","lat":-24.0,"lon":17.5,"c":"Mary Brink born here, 1894. Location to be confirmed.","shape":"dot","sz":"S"},{"n":"South West Africa","r":"Wider South Africa and Namibia","s":"Name changed","m":"Namibia","lat":-22.5,"lon":17.0,"c":"German colony in 1894.","shape":"dot","sz":"S"},{"n":"Pretoria","r":"Wider South Africa and Namibia","s":"Same","m":"Pretoria (City of Tshwane)","lat":-25.75,"lon":28.19,"c":"Mary Brink died here, 1973.","shape":"dot","sz":"S"},{"n":"Angola","r":"Wider South Africa and Namibia","s":"Same","m":"Angola","lat":-12.5,"lon":18.5,"c":"Origin of Lijsbeth van Angola and others.","shape":"triangle","sz":"M"},{"n":"Adelaide","r":"Australia","s":"Same","m":"Adelaide, South Australia","lat":-34.93,"lon":138.6,"c":"The author born here, 1968.","shape":"pin","sz":"M"},{"n":"Aldgate","r":"Australia","s":"Same","m":"Aldgate, Adelaide Hills","lat":-35.02,"lon":138.74,"c":"Dorothy Long died here, 2010.","shape":"pin","sz":"S"}];
+
+const COLORS={"India and the East":"#c2641f","Batavia (Java)":"#7a4ec2","Voyages and oceans":"#2a8fa8","Europe":"#4a7c3a","Cape Town and Table Bay":"#b8312f","Drakenstein and the Boland":"#8a6d1a","Wider South Africa and Namibia":"#b3592a","Australia":"#386aa3"};
+const BADGE={"Same":"#2e7d32","Name changed":"#ef6c00","Vanished, site known":"#c62828","Uncertain":"#616161"};
+
+const ROUTES = [{"name":"1. Catrijn enslaved: Coromandel to Batavia (VOC slave route, c. late 1640s)","color":"#000000","dash":"2 7","pts":[[13.41,80.32],[13,81],[7.25,82.25],[5.9,81.9],[6.198,85.948],[6.466,90],[6.157,94.326],[5.812,98.128],[4.085,99.764],[3.2,100.6],[2.586,101.316],[2,102],[1.1,103.6],[0.739,103.623],[0.569,103.843],[-0.587,104.137],[-2.169,105.063],[-2.346,105.686],[-2.892,105.905],[-3,106.1],[-5.2,106.8],[-5.917,106.868],[-6.083,106.88]]},{"name":"2. Catrijn banished: Batavia to the Cape, Prins Willem 1656-57","color":"#b3592a","dash":"7 6","pts":[[-6.13,106.81],[-5.917,106.868],[-5.817,106.1],[-5.894,105.864],[-5.979,105.755],[-6.299,105.425],[-6.593,104.828],[-7,104],[-8.482,99.982],[-8.892,98.87],[-10.031,95.782],[-11.601,91.525],[-12.163,90],[-13.377,86.761],[-15.056,85.116],[-15.17,85],[-15.879,84.281],[-17.544,82.593],[-20,80],[-22.543,77.601],[-23.267,76.053],[-24.182,73.945],[-24.87,72.357],[-25.809,70.001],[-26.38,68.569],[-27.198,66.313],[-27.788,64.684],[-28.954,61.108],[-29.331,59.851],[-30.049,57.364],[-30.093,54.999],[-30,50],[-32.275,47.908],[-33.129,42.878],[-33.532,40.001],[-33.924,36.391],[-34.066,35.011],[-34.365,30.517],[-34.5,26],[-33.932,25.934],[-33.918,25.641],[-33.932,25.934],[-34.5,26],[-35,22],[-35,18],[-33.841,18.237],[-33.862,18.428]]},{"name":"3. Angolan captives to the Cape: Amersfoort prize, 1658","color":"#7a4ec2","dash":"5 6","pts":[[-8.8,13.2],[-9,12],[-15.5,11],[-19,11],[-19.203,9.089],[-20.37,9.747],[-22.113,10.73],[-25.532,10.425],[-28.125,12.5],[-35,18],[-33.841,18.237],[-33.862,18.428]]},{"name":"4. Huguenots to the Cape: Oosterland, 1688","color":"#2a6db3","dash":"7 6","pts":[[51.4,3.45],[51.5,3.4],[51.179,2.357],[51.1,2.1],[50.988,1.813],[50.893,1.568],[50.849,1.441],[50.8,1.3],[50.766,1.15],[50.576,0.302],[50.395,-0.506],[50.358,-0.673],[50.338,-0.764],[50.222,-1.278],[50.134,-1.674],[50.112,-1.735],[49.992,-2.05],[49.936,-2.213],[49.878,-2.347],[49.44,-3.499],[49.242,-4.001],[49.103,-4.364],[48.828,-5.08],[48.667,-5.5],[44.918,-6.981],[44.301,-8.248],[43.9,-8.5],[43.591,-8.843],[43,-9.5],[40.78,-9.984],[38.5,-9.6],[37.782,-9.452],[36.8,-9.25],[36.472,-9.199],[36.041,-9.131],[35.874,-9.105],[35.725,-9.081],[35.385,-9.028],[35.186,-8.997],[34.603,-11.474],[34.065,-13.329],[32.409,-13.905],[29.338,-15.172],[28.752,-15.902],[28.335,-16.141],[27.716,-16.186],[24.724,-18.669],[24.56,-18.762],[22.492,-19.939],[20.808,-20.898],[20.504,-21.071],[16.251,-23.344],[15.524,-23.714],[13.927,-24.527],[11.973,-25.521],[10.319,-26.333],[7.678,-27.63],[7.677,-27.63],[7.517,-27.466],[5.978,-25.923],[2.65,-27.159],[2.358,-27.268],[2.553,-27.042],[0,-23.961],[-1.806,-21.781],[-3.282,-20],[-5,-20],[-10,-20],[-14.845,-19.999],[-15.001,-19.999],[-20,-20],[-25.084,-15.204],[-25.277,-15],[-30,-10],[-31.162,-8.931],[-32.153,-1.98],[-32.435,0.001],[-32.802,2.577],[-33.413,6.861],[-33.86,10.002],[-35,18],[-33.841,18.237],[-33.862,18.428]]},{"name":"5. Oosterland's last voyage: Ceylon to Table Bay, wrecked 1697","color":"#c62828","dash":"3 5","pts":[[6.93,79.85],[6.675,78.869],[6.388,78.019],[4.846,73.846],[4.144,73.561],[0,73.343],[0,70],[-2.512,67.524],[-2.587,67.449],[-3.334,66.709],[-5.057,65],[-7.517,62.533],[-10,60],[-15.354,59.026],[-19.635,58.207],[-20.019,57.454],[-20.924,55.286],[-26.4,48.1],[-28.259,44.118],[-30,40],[-31.879,34.358],[-33.5,28.5],[-33.932,25.934],[-33.918,25.641],[-33.932,25.934],[-34.5,26],[-35,22],[-35,18],[-33.841,18.237],[-33.862,18.428]]}];
+
+const REGION_BOUNDS={"India and the East":[[5,75],[25,120]],"Batavia (Java)":[[-10,100],[2,116]],"Voyages and oceans":[[-30,-35],[55,90]],"Europe":[[45,-2],[58,15]],"Cape Town and Table Bay":[[-34.5,18.3],[-33.7,18.6]],"Drakenstein and the Boland":[[-34.3,18.5],[-33.2,20.5]],"Wider South Africa and Namibia":[[-35,15],[-22,30]],"Australia":[[-36,137],[-34,140]]};
+
+const STORY=[
+{id:"birth",label:"Born at Pulicat",date:"c. 1631",places:["Pulicat (Pazhaverkadu)","Fort Geldria","Coromandel Coast"],text:"Catharina van Paliacatta is born on the lagoon, near the VOC's Fort Geldria."},
+{id:"enslaved",label:"Enslaved to Batavia",date:"c. late 1640s",places:["Batavia","Castle of Batavia","Tijgersgracht"],text:"Taken as a slave to the VOC capital, probably after the Bijapur wars disrupted the coast."},
+{id:"claes",label:"Claes killed at Rijswijck",date:"8 Oct 1656",places:["Rijswijck fortress and gardens"],text:"Her slave Claes is killed in the fortress gardens — the event that triggers everything."},
+{id:"trial",label:"Trial and pardon",date:"1656",places:["Castle of Batavia","Batavia"],text:"Condemned by the Council of Justice; pardoned by the Governor-General; banished to the Cape."},
+{id:"voyage1",label:"Banished: Batavia to the Cape",date:"1656-57",places:["Cape of Good Hope","Table Bay","Fort de Goede Hoop"],text:"Arrives at the Cape on the Prins Willem after eleven weeks at sea."},
+{id:"fort",label:"Life at the Fort",date:"1657-1660s",places:["Fort de Goede Hoop","Table Valley","Fresh River (Camissa)"],text:"Lives in a room under the stairs of the mud fort. Meets Anthonij of Bengal."},
+{id:"anthonij",label:"Marriage and freedom",date:"1660s-1670s",places:["Table Valley","Zeestraat","Bergdwarsstraat","Cape of Good Hope"],text:"Marries Anthonij, gains freedom, buys property on Zeestraat for 1,200 guilders."},
+{id:"christoffel",label:"Christoffel and Snijman",date:"1660s-1690s",places:["Robben Island","Stellenbosch","Drakenstein"],text:"Their son Christoffel marries the soldier's daughter; Hans Christoffel banished to Robben Island."},
+{id:"snijman",label:"Snijman's origins: the Harz",date:"c. 1643",places:["Bad Harzburg (Harzburg)","Harz Mountains","Goslar","Rammelsberg","Brocken"],text:"Hans Christoffel Snijman comes from the mining country the Thirty Years' War broke."},
+{id:"desavoye",label:"De Savoye and the Huguenots",date:"1636-1688",places:["Ath","Ghent","Tournai (Doornik)","Sas van Gent","Franschhoek","Vrede en Lust"],text:"Jacques de Savoye flees religious persecution, sails on the Oosterland to the Cape."},
+{id:"oosterland",label:"The Oosterland voyage",date:"Jan-Apr 1688",places:["Wielingen","Middelburg","Drakenstein","Paarl"],text:"The Huguenot ship departs Wielingen in January gales, reaches Table Bay after three months."},
+{id:"farms",label:"The Drakenstein farms",date:"1688-1700s",places:["Vrede en Lust","Zandvliet (Solms-Delta)","Nuwedorp","Franschhoek","Berg River","Simonsberg (Napoleonsberg)"],text:"De Savoye and Marguerite settle in the valley; Christoffel and Marguerite at Zandvliet."},
+{id:"wreck",label:"The Oosterland wrecked",date:"1697",places:["Table Bay","Salt River","Milnerton Lagoon","Ceylon"],text:"The ship that brought the Huguenots wrecks in Table Bay on her last return voyage."},
+{id:"descendants",label:"The line continues",date:"1700s-present",places:["Constantia","Paradijs","Kronendal, Hout Bay","Tulbagh","Swellendam","Graaff-Reinet","Adelaide","Aldgate"],text:"From Marguerite-Therese through the Snijman/Brink/Long lines to Adelaide."}
+];
+
+const ERAS=[
+{label:"India c.1631-c.1650",color:"#c2641f",region:"India and the East"},
+{label:"Batavia c.1650-1657",color:"#7a4ec2",region:"Batavia (Java)"},
+{label:"Early Cape 1657-1680s",color:"#b8312f",region:"Cape Town and Table Bay"},
+{label:"Huguenot 1688-1700s",color:"#8a6d1a",region:"Drakenstein and the Boland"},
+{label:"Descendants 1700s+",color:"#b3592a",region:"Wider South Africa and Namibia"}
+];
+
+// Build name index for cross-linking
+const nameIndex={};
+DATA.forEach((p,i)=>{nameIndex[p.n.toLowerCase()]=i;});
+// Sort names longest first for replacement
+const sortedNames=DATA.map(p=>p.n).sort((a,b)=>b.length-a.length);
+
+function crossLink(text){
+ let out=text;
+ sortedNames.forEach(name=>{
+  const re=new RegExp('(?<!<[^>]*)\\b'+name.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\b','g');
+  out=out.replace(re,'<span class="clink" onclick="flyToPlace(\''+name.replace(/'/g,"\\'")+'\')">' + name + '</span>');
+ });
+ return out;
+}
+
+function flyToPlace(name){
+ const idx=nameIndex[name.toLowerCase()];
+ if(idx===undefined)return;
+ const p=DATA[idx];
+ const zoom=p.r.includes('ocean')?4:(p.r==='Europe'?6:9);
+ map.flyTo([p.lat,p.lon],zoom,{duration:1.2});
+ setTimeout(()=>{if(markers[idx])markers[idx].openPopup();},1300);
+}
+
+// SVG marker factory
+function makeSVG(shape,color,sz){
+ const sizes={L:{icon:16,r:{circle:7,ring:5,dot:5}},M:{icon:12,r:{circle:5,ring:4,dot:4}},S:{icon:8,r:{circle:4,ring:3,dot:3}}};
+ const s=sizes[sz]||sizes.M;
+ const r=s.r;
+ let inner='';
+ switch(shape){
+  case 'circle': inner=`<circle cx="8" cy="8" r="${r.circle}" fill="${color}" stroke="#fff" stroke-width="1.5"/>`; break;
+  case 'triangle': inner=`<polygon points="8,2 14,14 2,14" fill="${color}" stroke="#fff" stroke-width="1.5"/>`; break;
+  case 'diamond': inner=`<polygon points="8,1 15,8 8,15 1,8" fill="${color}" stroke="#fff" stroke-width="1.5"/>`; break;
+  case 'ring': inner=`<circle cx="8" cy="8" r="${r.ring}" fill="none" stroke="${color}" stroke-width="3"/>`; break;
+  case 'dot': inner=`<circle cx="8" cy="8" r="${r.dot}" fill="${color}" stroke="#fff" stroke-width="1"/>`; break;
+  case 'pin': inner=`<path d="M8,1 C4,1 1,4 1,7.5 C1,12 8,15 8,15 S15,12 15,7.5 C15,4 12,1 8,1Z" fill="${color}" stroke="#fff" stroke-width="1.5"/>`; break;
+  default: inner=`<circle cx="8" cy="8" r="${r.circle}" fill="${color}" stroke="#fff" stroke-width="1.5"/>`;
+ }
+ const svg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="${s.icon}" height="${s.icon}">${inner}</svg>`;
+ const a=s.icon/2;
+ return L.divIcon({html:svg,className:'',iconSize:[s.icon,s.icon],iconAnchor:[a,a],popupAnchor:[0,-a]});
+}
+
+function makeShapeSVG(shape,color){
+ let inner='';
+ switch(shape){
+  case 'circle': inner=`<circle cx="8" cy="8" r="6" fill="${color}" stroke="#fff" stroke-width="1.5"/>`; break;
+  case 'triangle': inner=`<polygon points="8,2 14,14 2,14" fill="${color}" stroke="#fff" stroke-width="1.5"/>`; break;
+  case 'diamond': inner=`<polygon points="8,1 15,8 8,15 1,8" fill="${color}" stroke="#fff" stroke-width="1.5"/>`; break;
+  case 'ring': inner=`<circle cx="8" cy="8" r="5" fill="none" stroke="${color}" stroke-width="3"/>`; break;
+  case 'dot': inner=`<circle cx="8" cy="8" r="4" fill="${color}" stroke="#fff" stroke-width="1"/>`; break;
+  case 'pin': inner=`<path d="M8,1 C4,1 1,4 1,7.5 C1,12 8,15 8,15 S15,12 15,7.5 C15,4 12,1 8,1Z" fill="${color}" stroke="#fff" stroke-width="1.5"/>`; break;
+ }
+ return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16">${inner}</svg>`;
+}
+
+// Popup content
+function popupHTML(p){
+ let routeBadges='';
+ ROUTES.forEach(r=>{
+  r.pts.forEach(pt=>{
+   const d=Math.sqrt(Math.pow(pt[0]-p.lat,2)+Math.pow(pt[1]-p.lon,2));
+   if(d<2){routeBadges+='<span class="popup-route-badge" style="background:'+r.color+'">'+r.name.split(':')[0]+'</span>';return;}
+  });
+ });
+ // Deduplicate route badges
+ const seen={};let uniqueBadges='';
+ routeBadges.replace(/<span[^>]*>([^<]+)<\/span>/g,(m,t)=>{if(!seen[t]){seen[t]=1;uniqueBadges+=m;}});
+
+ let storyText=crossLink(p.c);
+ let html=`<b style="font-size:14px">${p.n}</b><br>`;
+ html+=`<span class="popup-badge" style="background:${BADGE[p.s]}">${p.s}</span><br>`;
+ html+=`<b>Now:</b> ${p.m}<br>`;
+ html+=`<div style="margin-top:4px">${storyText}</div>`;
+ if(uniqueBadges)html+=`<div class="popup-routes">Part of: ${uniqueBadges}</div>`;
+ return html;
+}
+
+// Init map
+const map=L.map('map',{worldCopyJump:true,zoomControl:true}).setView([5,55],3);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{
+ attribution:'&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> &copy; <a href="https://carto.com/" target="_blank" rel="noopener">CARTO</a>',
+ subdomains:'abcd',maxZoom:19
+}).addTo(map);
+
+// Routes
+const routeLines=[];
+const routeDecorators=[];
+ROUTES.forEach((r,i)=>{
+ const ln=L.polyline(r.pts,{color:r.color,weight:2.5,dashArray:r.dash,opacity:0.7}).addTo(map);
+ ln.bindTooltip(r.name,{sticky:true});
+ routeLines.push(ln);
+ const dec=L.polylineDecorator(ln,{patterns:[
+  {offset:'10%',repeat:80,symbol:L.Symbol.arrowHead({pixelSize:8,polygon:false,pathOptions:{stroke:true,color:r.color,weight:2,opacity:0.8}})}
+ ]}).addTo(map);
+ routeDecorators.push(dec);
+});
+
+// Markers
+const markers={};
+DATA.forEach((p,i)=>{
+ const icon=makeSVG(p.shape,COLORS[p.r],p.sz);
+ const m=L.marker([p.lat,p.lon],{icon:icon});
+ m.bindTooltip(`<b>${p.n}</b><br><span style="display:inline-block;padding:1px 5px;border-radius:3px;color:#fff;font-size:9px;background:${BADGE[p.s]}">${p.s}</span><br><span style="font-size:11px">${p.c.split('.')[0]}.</span>`,{direction:'top',offset:[0,-4]});
+ m.bindPopup(popupHTML(p),{maxWidth:300});
+ m.addTo(map);
+ markers[i]=m;
+});
+
+// Region bar
+const regionBar=document.getElementById('region-bar');
+Object.keys(COLORS).forEach(r=>{
+ const pill=document.createElement('span');
+ pill.className='rpill';
+ pill.style.background=COLORS[r];
+ pill.textContent=r;
+ pill.onclick=()=>{
+  document.querySelectorAll('.rpill').forEach(p=>p.classList.remove('active'));
+  pill.classList.add('active');
+  map.flyToBounds(REGION_BOUNDS[r],{padding:[30,30],duration:1});
+ };
+ regionBar.appendChild(pill);
+});
+
+// Sidebar tabs
+document.querySelectorAll('.tab').forEach(t=>{
+ t.onclick=()=>{
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(x=>x.classList.remove('active'));
+  t.classList.add('active');
+  document.getElementById(t.dataset.tab+'-tab').classList.add('active');
+ };
+});
+
+// Voyages tab
+const voyTab=document.getElementById('voyages-tab');
+ROUTES.forEach((r,i)=>{
+ const card=document.createElement('div');
+ card.className='card';
+ const shortName=r.name.split(':');
+ card.innerHTML=`
+  <div class="card-head" onclick="this.parentElement.classList.toggle('open')">
+   <span class="arr">&#9654;</span>
+   <span class="swatch" style="background:${r.color}"></span>
+   <span>${shortName[0]}</span>
+  </div>
+  <div class="card-body">
+   <div style="margin-bottom:6px;color:#666">${r.name}</div>
+   <div class="waypoints" id="waypoints-${i}"></div>
+   <button class="play-btn" id="play-${i}" onclick="playVoyage(${i})">&#9654; Play this voyage</button>
+  </div>`;
+ voyTab.appendChild(card);
+ // Populate waypoints
+ const wp=card.querySelector(`#waypoints-${i}`);
+ r.pts.forEach((pt,j)=>{
+  // Find nearest place
+  let best=null,bestD=Infinity;
+  DATA.forEach(p=>{
+   const d=Math.sqrt(Math.pow(p.lat-pt[0],2)+Math.pow(p.lon-pt[1],2));
+   if(d<bestD){bestD=d;best=p;}
+  });
+  const label=bestD<2?best.n:`Waypoint ${j+1} (${pt[0].toFixed(1)}, ${pt[1].toFixed(1)})`;
+  const link=document.createElement('div');
+  link.style.cssText='padding:2px 0';
+  if(bestD<2){
+   link.innerHTML=`<span class="clink" onclick="flyToPlace('${best.n.replace(/'/g,"\\'")}')">${j+1}. ${label}</span>`;
+  } else {
+   link.innerHTML=`<span style="color:#999">${j+1}. ${label}</span>`;
+  }
+  wp.appendChild(link);
+ });
+});
+
+// Voyage animation
+let animTimer=null, animRoute=-1;
+function playVoyage(idx){
+ if(animTimer){stopVoyage();if(animRoute===idx)return;}
+ animRoute=idx;
+ const btn=document.getElementById('play-'+idx);
+ btn.textContent='Stop';
+ btn.onclick=()=>stopVoyage();
+ const pts=ROUTES[idx].pts;
+ let step=0;
+ const shipIcon=L.divIcon({html:'<div style="font-size:20px">&#9981;</div>',className:'',iconSize:[24,24],iconAnchor:[12,12]});
+ const ship=L.marker(pts[0],{icon:shipIcon}).addTo(map);
+ map.flyTo(pts[0],5,{duration:0.8});
+ function advance(){
+  if(step>=pts.length){stopVoyage();return;}
+  ship.setLatLng(pts[step]);
+  map.panTo(pts[step],{animate:true,duration:0.8});
+  // Find nearby place
+  let best=null,bestD=Infinity;
+  DATA.forEach(p=>{
+   const d=Math.sqrt(Math.pow(p.lat-pts[step][0],2)+Math.pow(p.lon-pts[step][1],2));
+   if(d<bestD){bestD=d;best=p;}
+  });
+  if(bestD<2){
+   ship.bindTooltip(best.n+': '+best.c,{permanent:true,direction:'top'}).openTooltip();
+  } else {
+   ship.unbindTooltip();
+  }
+  step++;
+  animTimer=setTimeout(advance,3000);
+ }
+ advance();
+ window._animShip=ship;
+}
+function stopVoyage(){
+ clearTimeout(animTimer);animTimer=null;
+ if(window._animShip){map.removeLayer(window._animShip);window._animShip=null;}
+ ROUTES.forEach((r,i)=>{
+  const btn=document.getElementById('play-'+i);
+  btn.textContent='▶ Play this voyage';
+  btn.onclick=()=>playVoyage(i);
+ });
+ animRoute=-1;
+}
+
+// Story tab
+const storyTab=document.getElementById('story-tab');
+STORY.forEach(s=>{
+ const card=document.createElement('div');
+ card.className='card';
+ card.innerHTML=`
+  <div class="card-head" onclick="this.parentElement.classList.toggle('open')">
+   <span class="arr">&#9654;</span>
+   <span style="color:#888;font-size:11px;min-width:70px">${s.date}</span>
+   <span>${s.label}</span>
+  </div>
+  <div class="card-body">
+   <div style="margin-bottom:6px">${s.text}</div>
+   <div>${s.places.map(pn=>'<span class="clink" onclick="flyToPlace(\''+pn.replace(/'/g,"\\'")+'\')" style="margin-right:6px">'+pn+'</span>').join('')}</div>
+  </div>`;
+ storyTab.appendChild(card);
+});
+
+// Places tab
+let placeFilter='all', placeSort='name';
+const statusList=['Same','Name changed','Vanished, site known','Uncertain'];
+const filterBar=document.getElementById('status-filters');
+const allBtn=document.createElement('button');
+allBtn.className='fbtn on';allBtn.textContent='All';
+allBtn.onclick=()=>{placeFilter='all';renderPlaces();document.querySelectorAll('.fbtn').forEach(b=>b.classList.remove('on'));allBtn.classList.add('on');};
+filterBar.appendChild(allBtn);
+statusList.forEach(st=>{
+ const btn=document.createElement('button');
+ btn.className='fbtn';
+ btn.innerHTML=`<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${BADGE[st]};margin-right:3px"></span>${st}`;
+ btn.onclick=()=>{placeFilter=st;renderPlaces();document.querySelectorAll('.fbtn').forEach(b=>b.classList.remove('on'));btn.classList.add('on');};
+ filterBar.appendChild(btn);
+});
+
+function sortPlaces(by){
+ placeSort=by;
+ document.querySelectorAll('.sbtn').forEach(b=>b.classList.remove('on'));
+ document.querySelector(`.sbtn[onclick="sortPlaces('${by}')"]`).classList.add('on');
+ renderPlaces();
+}
+
+function renderPlaces(){
+ const list=document.getElementById('places-list');
+ list.innerHTML='';
+ let items=DATA.map((p,i)=>({p,i}));
+ if(placeFilter!=='all')items=items.filter(x=>x.p.s===placeFilter);
+ if(placeSort==='name')items.sort((a,b)=>a.p.n.localeCompare(b.p.n));
+ else items.sort((a,b)=>a.p.r.localeCompare(b.p.r)||a.p.n.localeCompare(b.p.n));
+ items.forEach(({p,i})=>{
+  const div=document.createElement('div');
+  div.className='place-card';
+  div.setAttribute('data-idx',i);
+  div.innerHTML=`${makeShapeSVG(p.shape,COLORS[p.r])}<div style="flex:1"><div>${p.n}</div><div class="rg">${p.r}</div></div><span class="badge" style="background:${BADGE[p.s]}">${p.s}</span>`;
+  div.onclick=()=>flyToPlace(p.n);
+  list.appendChild(div);
+ });
+}
+renderPlaces();
+
+// Scrubber
+const scrubber=document.getElementById('scrubber');
+ERAS.forEach(e=>{
+ const div=document.createElement('div');
+ div.className='era';
+ div.style.background=e.color;
+ div.textContent=e.label;
+ div.onclick=()=>{
+  document.querySelectorAll('.era').forEach(x=>x.classList.remove('active'));
+  div.classList.add('active');
+  if(REGION_BOUNDS[e.region])map.flyToBounds(REGION_BOUNDS[e.region],{padding:[30,30],duration:1});
+ };
+ scrubber.appendChild(div);
+});
+
+// Legend
+const legend=document.getElementById('legend');
+const shapes=[['circle','Settlement / City'],['triangle','Conflict / Event'],['diamond','Fort / Institution'],['ring','Origin / Homeland'],['dot','Geography / Feature'],['pin','Home / Farm / Burial']];
+let legendHTML='<h4>Marker shapes</h4>';
+shapes.forEach(([sh,lbl])=>{
+ legendHTML+=`<div class="legend-row"><span class="legend-svg">${makeShapeSVG(sh,'#666')}</span>${lbl}</div>`;
+});
+legendHTML+=`<div class="sz-row"><span class="sz-dot" style="width:14px;height:14px"></span> Major <span class="sz-dot" style="width:10px;height:10px"></span> Medium <span class="sz-dot" style="width:6px;height:6px"></span> Minor</div>`;
+legend.innerHTML=legendHTML;
+
+// Minimap
+const minimap=L.map('minimap',{zoomControl:false,attributionControl:false,dragging:false,scrollWheelZoom:false,doubleClickZoom:false,touchZoom:false}).setView([0,40],1);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{subdomains:'abcd',maxZoom:4}).addTo(minimap);
+const miniRect=L.rectangle([[0,0],[0,0]],{color:'#c2641f',weight:1,fillOpacity:0.15}).addTo(minimap);
+function updateMinimap(){
+ const b=map.getBounds();
+ miniRect.setBounds(b);
+}
+map.on('moveend',updateMinimap);
+map.on('zoomend',updateMinimap);
+setTimeout(updateMinimap,500);
+
+// Search
+const qInput=document.getElementById('q');
+const searchInfo=document.getElementById('search-info');
+let searchMatches=[], searchIdx=-1;
+
+function doSearch(){
+ const q=qInput.value.toLowerCase().trim();
+ searchMatches=[];searchIdx=-1;
+ // Clear highlights
+ document.querySelectorAll('.place-card').forEach(c=>c.classList.remove('highlight'));
+ if(!q){searchInfo.textContent='';return;}
+ DATA.forEach((p,i)=>{
+  if(p.n.toLowerCase().includes(q)||p.m.toLowerCase().includes(q)||p.c.toLowerCase().includes(q)){
+   searchMatches.push(i);
+  }
+ });
+ // Also search routes
+ ROUTES.forEach((r,i)=>{
+  if(r.name.toLowerCase().includes(q)){/* route match, could highlight */}
+ });
+ if(searchMatches.length){
+  searchIdx=0;
+  goToMatch();
+ }
+ searchInfo.textContent=searchMatches.length?`${searchIdx+1} of ${searchMatches.length}`:'0 results';
+ // Highlight in places tab
+ document.querySelectorAll('.place-card').forEach(c=>{
+  const idx=parseInt(c.getAttribute('data-idx'));
+  if(searchMatches.includes(idx))c.classList.add('highlight');
+ });
+}
+
+function goToMatch(){
+ if(searchMatches.length===0)return;
+ const idx=searchMatches[searchIdx];
+ const p=DATA[idx];
+ map.flyTo([p.lat,p.lon],p.r.includes('ocean')?4:9,{duration:0.8});
+ setTimeout(()=>{if(markers[idx])markers[idx].openPopup();},900);
+ searchInfo.textContent=`${searchIdx+1} of ${searchMatches.length}`;
+}
+
+qInput.addEventListener('input',doSearch);
+document.getElementById('nextMatch').onclick=()=>{
+ if(searchMatches.length===0)return;
+ searchIdx=(searchIdx+1)%searchMatches.length;
+ goToMatch();
+};
+document.getElementById('prevMatch').onclick=()=>{
+ if(searchMatches.length===0)return;
+ searchIdx=(searchIdx-1+searchMatches.length)%searchMatches.length;
+ goToMatch();
+};
+
+// Keyboard
+document.addEventListener('keydown',e=>{
+ if(e.key==='Escape'){
+  map.closePopup();
+  const sb=document.getElementById('sidebar');
+  if(!sb.classList.contains('hidden')&&window.innerWidth<=768)sb.classList.add('hidden');
+ }
+});
+
+window.flyToPlace=flyToPlace;
+window.sortPlaces=sortPlaces;
+</script>
+</body>
+</html>
