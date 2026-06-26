@@ -436,7 +436,10 @@ const featIcon=L.divIcon({className:'v2badge-icon',html:'<span class="v2badge"><
 const featMarker=L.marker([53.843,8.672],{icon:featIcon,zIndexOffset:1000,keyboard:false});
 featMarker.bindPopup(V2_CARD,{maxWidth:300,minWidth:240,autoPan:true,autoPanPadding:[24,24]});
 featMarker.bindTooltip('Charles Black on V2ROCKET.com',{direction:'top',offset:[0,-12],opacity:.96});
-const featureLayer=L.layerGroup([featMarker]); featureLayer.addTo(map);
+const featureLayer=L.layerGroup([featMarker]);
+const FEAT_MINZOOM=11;
+function updateFeatVis(){ var show=groupActive['backfire'] && map.getZoom()>=FEAT_MINZOOM; if(show){ if(!map.hasLayer(featureLayer)) featureLayer.addTo(map); } else { if(map.hasLayer(featureLayer)) map.removeLayer(featureLayer); } }
+map.on('zoomend',updateFeatVis); updateFeatVis();
 
 /* ---- hover enrichment (baked + live wiki refresh) ---- */
 let enrichPopup=null;
@@ -518,7 +521,7 @@ function recomputeGroups(){
     if(groupActive[p.group]){ if(!clusterGroup.hasLayer(m)) clusterGroup.addLayer(m); }
     else { if(clusterGroup.hasLayer(m)) clusterGroup.removeLayer(m); }
   });
-  if(groupActive['backfire']){ if(!map.hasLayer(featureLayer)) featureLayer.addTo(map); } else { if(map.hasLayer(featureLayer)) map.removeLayer(featureLayer); }
+  updateFeatVis();
 }
 function setJourney(id,on){
   journeyActive[id]=on;
