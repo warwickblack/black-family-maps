@@ -121,7 +121,7 @@ html,body{height:100%;overflow:hidden;font-family:Aptos,'Segoe UI',Calibri,sans-
 .journey-header .arrow{font-size:10px;transition:transform .2s;color:#aaa}
 .journey-card.expanded .journey-header .arrow{transform:rotate(90deg)}
 .journey-swatch{width:12px;height:12px;border-radius:3px;flex-shrink:0}
-.journey-note{font-size:11px;color:#777;padding:0 12px 8px 32px;line-height:1.4;display:none}.journey-feat{display:none;align-items:center;gap:7px;margin:2px 12px 9px 24px;padding:7px 9px;border-left:3px solid #7a2e1e;background:#faf4f1;border-radius:0 4px 4px 0;font-size:12px;color:#7a2e1e;text-decoration:none;font-weight:600}.journey-card.expanded .journey-feat{display:flex}.journey-feat .lab{flex:1}.journey-feat:hover{background:#f3e6df}.v2badge-icon{background:none;border:none}.v2badge{display:inline-block;white-space:nowrap;background:#7a2e1e;color:#fff;border:1.5px solid #fff;border-radius:14px;padding:4px 9px;font:500 11px/1.1 system-ui,Arial,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.35);cursor:pointer}.v2badge .v2star{color:#ffd9a8;margin-right:2px}.v2card{font:13px/1.45 system-ui,Arial,sans-serif;max-width:280px}.v2card h4{margin:0 0 5px;font-size:14px;color:#00838f}.v2card p{margin:0 0 9px;color:#333}.v2btn{display:inline-block;padding:6px 11px;border-radius:6px;background:#7a2e1e;color:#fff;text-decoration:none;font-weight:700;font-size:12px}.v2btn:hover{background:#9a3a26}.v2note{font-size:11px;color:#666;margin-top:5px;font-style:italic}
+.journey-note{font-size:11px;color:#777;padding:0 12px 8px 32px;line-height:1.4;display:none}
 .journey-card.expanded .journey-note{display:block}
 .journey-stops{display:none;padding:0 12px 10px 24px}
 .journey-card.expanded .journey-stops{display:block}
@@ -429,14 +429,6 @@ PLACES.forEach(p=>{
   clusterGroup.addLayer(m);
   markers[p.id]=m;
 });
-/* ---- featured external link: Charles Black on V2ROCKET (Backfire) ---- */
-const V2_HREF='https://www.v2rocket.com/start/chapters/backfire.html#:~:text=Dr.%20Warwick%20Black%20of%20Australia';
-const V2_CARD='<div class="v2card"><h4>Featured: Charles Black at Operation Backfire</h4>'+'<p>His own photographs and papers from the 1945 V-2 trials at Cuxhaven are published by V2ROCKET.com as The Charles Black Collection.</p>'+'<a class="v2btn" href="'+V2_HREF+'" target="_blank" rel="noopener">Read the collection &rarr;</a>'+'<div class="v2note">Opens V2ROCKET.com at the Charles Black section, near the foot of the page.</div></div>';
-const featIcon=L.divIcon({className:'v2badge-icon',html:'<span class="v2badge"><span class="v2star">&#9733;</span>Featured: Charles Black</span>',iconSize:[160,26],iconAnchor:[80,13]});
-const featMarker=L.marker([53.843,8.672],{icon:featIcon,zIndexOffset:1000,keyboard:false});
-featMarker.bindPopup(V2_CARD,{maxWidth:300,minWidth:240,autoPan:true,autoPanPadding:[24,24]});
-featMarker.bindTooltip('Charles Black on V2ROCKET.com',{direction:'top',offset:[0,-12],opacity:.96});
-const featureLayer=L.layerGroup([featMarker]); featureLayer.addTo(map);
 
 /* ---- hover enrichment (baked + live wiki refresh) ---- */
 let enrichPopup=null;
@@ -518,7 +510,6 @@ function recomputeGroups(){
     if(groupActive[p.group]){ if(!clusterGroup.hasLayer(m)) clusterGroup.addLayer(m); }
     else { if(clusterGroup.hasLayer(m)) clusterGroup.removeLayer(m); }
   });
-  if(groupActive['backfire']){ if(!map.hasLayer(featureLayer)) featureLayer.addTo(map); } else { if(map.hasLayer(featureLayer)) map.removeLayer(featureLayer); }
 }
 function setJourney(id,on){
   journeyActive[id]=on;
@@ -577,9 +568,8 @@ JOURNEYS.forEach(j=>{
   const card=document.createElement('div'); card.className='journey-card';
   let stopsHTML=stops.map(s=>{ const p=placeById[s.id]; const mi=s.mode?`<span class="journey-leg-mode" title="${(MODE[s.mode]||{}).label}">${(MODE[s.mode]||{}).ico||''}</span> `:'';
     return `<div class="journey-stop" data-fly="${s.id}">${mi}<span class="stop-name">${p?p.name:s.id}</span></div>`; }).join('');
-  const featRow = j.id==='r9' ? `<a class="journey-feat" href="https://www.v2rocket.com/start/chapters/backfire.html#:~:text=Dr.%20Warwick%20Black%20of%20Australia" target="_blank" rel="noopener"><span class="lab">Featured: Charles Black on V2ROCKET.com</span><span aria-hidden="true">&#8599;</span></a>` : '';
   card.innerHTML=`<div class="journey-header"><span class="arrow">&#9654;</span><span class="journey-swatch" style="background:${col}"></span><span>${j.name}</span></div>`+
-    `<div class="journey-note">${j.note||''}</div><div class="journey-stops">${stopsHTML}</div>${featRow}`;
+    `<div class="journey-note">${j.note||''}</div><div class="journey-stops">${stopsHTML}</div>`;
   card.querySelector('.journey-header').onclick=()=>card.classList.toggle('expanded');
   pj.appendChild(card);
 });
